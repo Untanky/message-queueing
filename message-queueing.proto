@@ -1,0 +1,26 @@
+package message_queueing;
+
+option go_package="./queueing";
+
+message RawQueueMessage {
+  required bytes rawMessages = 1;
+  map<string, string> attributes = 2;
+}
+
+message SubmitMessagesRequest {
+  required string queueID = 1;
+  repeated RawQueueMessage messages = 2;
+}
+message SubmitMessagesResponse {}
+
+message RetrieveMessagesRequest {}
+message RetrieveMessagesResponse {}
+
+message AcknowledgeMessagesRequest {}
+message AcknowledgeMessagesResponse {}
+
+service QueueService {
+  rpc SubmitMessages(SubmitMessagesRequest) returns (SubmitMessagesResponse);
+  rpc RetrieveMessages(RetrieveMessagesRequest) returns (RetrieveMessagesResponse);
+  rpc AcknowledgeMessages(AcknowledgeMessagesRequest) returns (AcknowledgeMessagesResponse);
+}
