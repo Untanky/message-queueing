@@ -3,15 +3,33 @@ package message_queueing;
 option go_package="./queueing";
 
 message RawQueueMessage {
-  required bytes rawMessages = 1;
+  required bytes rawMessage = 1;
   map<string, string> attributes = 2;
+}
+
+message QueueMessage {
+  required bytes data = 1;
+  required string messageID = 2;
+  required int64 timestamp = 3;
+  required bytes dataHash = 4;
+  map<string, string> attributes = 5;
+}
+
+message SubmitReceipt {
+  required bool ok = 1;
+  required string messageID = 2;
+  optional string reason = 3;
+  optional int64 timestamp = 4;
+  optional bytes dataHash = 5;
 }
 
 message SubmitMessagesRequest {
   required string queueID = 1;
   repeated RawQueueMessage messages = 2;
 }
-message SubmitMessagesResponse {}
+message SubmitMessagesResponse {
+  repeated SubmitReceipt receipts = 1;
+}
 
 message RetrieveMessagesRequest {}
 message RetrieveMessagesResponse {}
