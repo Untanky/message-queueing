@@ -3,46 +3,44 @@ package queueing
 import (
 	"encoding/binary"
 	"google.golang.org/protobuf/proto"
-	"os"
+	"io"
 	"sync"
 )
 
-type FilePersister struct {
+type GenericPersister struct {
 	lock sync.Locker
 
-	file *os.File
+	handler io.ReadWriteSeeker
 }
 
-func NewFilePersister() (Persister, error) {
-	file, err := os.OpenFile("data", os.O_CREATE|os.O_RDWR, 0600)
-	if err != nil {
-		return nil, err
+func NewPersister(handler io.ReadWriteSeeker) Persister {
+	return &GenericPersister{
+		lock:    &sync.Mutex{},
+		handler: handler,
 	}
-
-	return &FilePersister{
-		lock: &sync.Mutex{},
-		file: file,
-	}, nil
 }
 
-func (persister *FilePersister) Write(message *QueueMessage) (MessageLocation, error) {
+func (persister *GenericPersister) Write(message *QueueMessage) (MessageLocation, error) {
 	data, err := proto.Marshal(message)
 	if err != nil {
 		return 0, err
 	}
 	l := len(data)
 
-	off, err := persister.file.Seek(0, 2)
+	persister.lock.Lock()
+	defer persister.lock.Unlock()
+
+	off, err := persister.handler.Seek(0, 2)
 	if err != nil {
 		return 0, err
 	}
 
-	err = binary.Write(persister.file, binary.BigEndian, uint64(l))
+	err = binary.Write(persister.handler, binary.BigEndian, uint64(l))
 	if err != nil {
 		return 0, err
 	}
 
-	_, err = persister.file.Write(data)
+	_, err = persister.handler.Write(data)
 	if err != nil {
 		return 0, err
 	}
@@ -50,20 +48,23 @@ func (persister *FilePersister) Write(message *QueueMessage) (MessageLocation, e
 	return MessageLocation(off), nil
 }
 
-func (persister *FilePersister) Read(location MessageLocation) (*QueueMessage, error) {
-	_, err := persister.file.Seek(int64(location), 0)
+func (persister *GenericPersister) Read(location MessageLocation) (*QueueMessage, error) {
+	persister.lock.Lock()
+	defer persister.lock.Unlock()
+
+	_, err := persister.handler.Seek(int64(location), 0)
 	if err != nil {
 		return nil, err
 	}
 
 	var length uint64
-	err = binary.Read(persister.file, binary.BigEndian, &length)
+	err = binary.Read(persister.handler, binary.BigEndian, &length)
 	if err != nil {
 		return nil, err
 	}
 
 	data := make([]byte, length)
-	_, err = persister.file.Read(data)
+	_, err = persister.handler.Read(data)
 	if err != nil {
 		return nil, err
 	}

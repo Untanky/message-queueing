@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	"log/slog"
 	queueing "message-queueing"
+	"os"
 )
 
 func main() {
@@ -12,10 +14,12 @@ func main() {
 	Data := []byte("Hello World")
 	DataHash := []byte("FGOOOO")
 
-	persister, err := queueing.NewFilePersister()
+	file, err := os.OpenFile("data", os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
-		slog.Error("could not create persister", "err", err)
+		panic(fmt.Errorf("could not open file: %w", err))
 	}
+	defer file.Close()
+	persister := queueing.NewPersister(file)
 
 	message := &queueing.QueueMessage{
 		MessageID:  &MessageID,
