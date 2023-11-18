@@ -6,6 +6,8 @@ import (
 	"sync"
 )
 
+var NotFoundError = errors.New("not found")
+
 type indexTuple struct {
 	id       MessageId
 	location MessageLocation
@@ -42,7 +44,7 @@ func (index *naiveIndex) Get(id MessageId) (MessageLocation, error) {
 	target := indexTuple{id: id}
 	i, ok := slices.BinarySearchFunc(index.data, target, compareTuples)
 	if !ok {
-		return 0, errors.New("not found")
+		return 0, NotFoundError
 	}
 
 	return index.data[i].location, nil
@@ -71,7 +73,7 @@ func (index *naiveIndex) Delete(id MessageId) (MessageLocation, error) {
 	target := indexTuple{id: id}
 	i, ok := slices.BinarySearchFunc(index.data, target, compareTuples)
 	if !ok {
-		return 0, errors.New("not found")
+		return 0, NotFoundError
 	}
 
 	loc := index.data[i].location
