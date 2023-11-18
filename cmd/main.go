@@ -1,34 +1,30 @@
 package main
 
+import (
+	"fmt"
+	"github.com/google/uuid"
+	queueing "message-queueing"
+)
+
 func main() {
-	//MessageID := uuid.NewString()
-	//Timestamp := int64(23178989641)
-	//Data := []byte("Hello World")
-	//DataHash := []byte("FGOOOO")
-	//
-	//file, err := os.OpenFile("data", os.O_CREATE|os.O_RDWR, 0600)
-	//if err != nil {
-	//	panic(fmt.Errorf("could not open file: %w", err))
-	//}
-	//defer file.Close()
-	//persister := queueing.NewPersister(file)
-	//
-	//message := &queueing.QueueMessage{
-	//	MessageID:  &MessageID,
-	//	Timestamp:  &Timestamp,
-	//	Data:       Data,
-	//	DataHash:   DataHash,
-	//	Attributes: map[string]string{},
-	//}
-	//n, err := persister.Write(message)
-	//if err != nil {
-	//	slog.Error("error writing", "err", err, "n", n)
-	//}
-	//
-	//message, err = persister.Read(n)
-	//if err != nil {
-	//	slog.Error("error reading", "err", err)
-	//}
-	//
-	//slog.Info("Success!", "id", *message.MessageID)
+	index := queueing.NewPrimaryIndex()
+
+	a := queueing.MessageId(uuid.New())
+	b := queueing.MessageId(uuid.New())
+	c := queueing.MessageId(uuid.New())
+
+	index.Set(a, 0)
+	index.Set(b, 1234)
+	index.Set(c, 2468)
+
+	fmt.Println(index.Get(a))
+	fmt.Println(index.Get(b))
+	fmt.Println(index.Get(c))
+	fmt.Println(index.Get(queueing.MessageId(uuid.New())))
+
+	fmt.Println(index)
+
+	index.Delete(a)
+
+	fmt.Println(index)
 }
