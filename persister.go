@@ -2,29 +2,24 @@ package queueing
 
 import (
 	"encoding/binary"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"sync"
 )
 
-type GenericPersister struct {
+type genericPersister struct {
 	lock sync.Locker
 
 	handler io.ReadWriteSeeker
 }
 
 func NewPersister(handler io.ReadWriteSeeker) Persister {
-	return &GenericPersister{
+	return &genericPersister{
 		lock:    &sync.Mutex{},
 		handler: handler,
 	}
 }
 
-func (persister *GenericPersister) Write(message *QueueMessage) (MessageLocation, error) {
-	data, err := proto.Marshal(message)
-	if err != nil {
-		return 0, err
-	}
+func (persister *genericPersister) Write(data []byte) (int64, error) {
 	l := len(data)
 
 	persister.lock.Lock()
@@ -45,14 +40,14 @@ func (persister *GenericPersister) Write(message *QueueMessage) (MessageLocation
 		return 0, err
 	}
 
-	return MessageLocation(off), nil
+	return off, nil
 }
 
-func (persister *GenericPersister) Read(location MessageLocation) (*QueueMessage, error) {
+func (persister *genericPersister) Read(location int64) ([]byte, error) {
 	persister.lock.Lock()
 	defer persister.lock.Unlock()
 
-	_, err := persister.handler.Seek(int64(location), 0)
+	_, err := persister.handler.Seek(location, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -69,11 +64,5 @@ func (persister *GenericPersister) Read(location MessageLocation) (*QueueMessage
 		return nil, err
 	}
 
-	message := new(QueueMessage)
-	err = proto.Unmarshal(data, message)
-	if err != nil {
-		return nil, err
-	}
-
-	return message, err
+	return data, err
 }
