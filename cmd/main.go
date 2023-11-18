@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	index := queueing.NewPrimaryIndex()
+	index := queueing.NewNaiveIndex()
 
 	a := queueing.MessageId(uuid.New())
 	b := queueing.MessageId(uuid.New())

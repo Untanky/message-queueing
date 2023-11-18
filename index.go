@@ -22,27 +22,27 @@ func compareTuples(a, b indexTuple) int {
 	return 0
 }
 
-type sliceIndex struct {
+type naiveIndex struct {
 	data []indexTuple
 }
 
-func NewPrimaryIndex() Index {
-	return &sliceIndex{
+func NewNaiveIndex() Index {
+	return &naiveIndex{
 		data: make([]indexTuple, 0, 16),
 	}
 }
 
-func (index *sliceIndex) Get(id MessageId) (MessageLocation, error) {
+func (index *naiveIndex) Get(id MessageId) (MessageLocation, error) {
 	target := indexTuple{id: id}
-	k, ok := slices.BinarySearchFunc(index.data, target, compareTuples)
+	i, ok := slices.BinarySearchFunc(index.data, target, compareTuples)
 	if !ok {
 		return 0, errors.New("not found")
 	}
 
-	return index.data[k].location, nil
+	return index.data[i].location, nil
 }
 
-func (index *sliceIndex) Set(id MessageId, location MessageLocation) error {
+func (index *naiveIndex) Set(id MessageId, location MessageLocation) error {
 	tuple := indexTuple{
 		id:       id,
 		location: location,
@@ -55,15 +55,15 @@ func (index *sliceIndex) Set(id MessageId, location MessageLocation) error {
 	return nil
 }
 
-func (index *sliceIndex) Delete(id MessageId) (MessageLocation, error) {
+func (index *naiveIndex) Delete(id MessageId) (MessageLocation, error) {
 	target := indexTuple{id: id}
-	k, ok := slices.BinarySearchFunc(index.data, target, compareTuples)
+	i, ok := slices.BinarySearchFunc(index.data, target, compareTuples)
 	if !ok {
 		return 0, errors.New("not found")
 	}
 
-	loc := index.data[k].location
-	index.data = append(index.data[:k], index.data[k+1:]...)
+	loc := index.data[i].location
+	index.data = append(index.data[:i], index.data[i+1:]...)
 
 	return loc, nil
 }
