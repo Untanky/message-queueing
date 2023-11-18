@@ -26,7 +26,7 @@ type naiveIndex struct {
 	data []indexTuple
 }
 
-func NewNaiveIndex() Index {
+func NewNaiveIndex() Index[MessageId, MessageLocation] {
 	return &naiveIndex{
 		data: make([]indexTuple, 0, 16),
 	}
