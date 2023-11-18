@@ -3,6 +3,7 @@ package queueing
 import (
 	"errors"
 	"slices"
+	"sync"
 )
 
 type indexTuple struct {
@@ -23,16 +24,21 @@ func compareTuples(a, b indexTuple) int {
 }
 
 type naiveIndex struct {
+	lock sync.Locker
 	data []indexTuple
 }
 
 func NewNaiveIndex() Index[MessageId, MessageLocation] {
 	return &naiveIndex{
+		lock: &sync.Mutex{},
 		data: make([]indexTuple, 0, 16),
 	}
 }
 
 func (index *naiveIndex) Get(id MessageId) (MessageLocation, error) {
+	index.lock.Lock()
+	defer index.lock.Unlock()
+
 	target := indexTuple{id: id}
 	i, ok := slices.BinarySearchFunc(index.data, target, compareTuples)
 	if !ok {
@@ -43,6 +49,9 @@ func (index *naiveIndex) Get(id MessageId) (MessageLocation, error) {
 }
 
 func (index *naiveIndex) Set(id MessageId, location MessageLocation) error {
+	index.lock.Lock()
+	defer index.lock.Unlock()
+
 	tuple := indexTuple{
 		id:       id,
 		location: location,
@@ -56,6 +65,9 @@ func (index *naiveIndex) Set(id MessageId, location MessageLocation) error {
 }
 
 func (index *naiveIndex) Delete(id MessageId) (MessageLocation, error) {
+	index.lock.Lock()
+	defer index.lock.Unlock()
+
 	target := indexTuple{id: id}
 	i, ok := slices.BinarySearchFunc(index.data, target, compareTuples)
 	if !ok {
