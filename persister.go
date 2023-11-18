@@ -25,7 +25,7 @@ func (persister *genericPersister) Write(data []byte) (int64, error) {
 	persister.lock.Lock()
 	defer persister.lock.Unlock()
 
-	off, err := persister.handler.Seek(0, 2)
+	off, err := persister.handler.Seek(0, io.SeekEnd)
 	if err != nil {
 		return 0, err
 	}
@@ -47,7 +47,7 @@ func (persister *genericPersister) Read(location int64) ([]byte, error) {
 	persister.lock.Lock()
 	defer persister.lock.Unlock()
 
-	_, err := persister.handler.Seek(location, 0)
+	_, err := persister.handler.Seek(location, io.SeekStart)
 	if err != nil {
 		return nil, err
 	}
