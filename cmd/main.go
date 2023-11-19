@@ -2,45 +2,54 @@ package main
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	queueing "message-queueing"
 	"time"
 )
 
 func main() {
-	repo, err := queueing.SetupQueueMessageRepository("abc")
-	if err != nil {
-		panic(err)
-	}
+	queue := queueing.NewHeapQueue()
+	queue.Enqueue(time.Now().Add(time.Duration(-1_000_000_000)), queueing.MessageLocation(0))
+	queue.Enqueue(time.Now().Add(time.Duration(-2_000_000_000)), queueing.MessageLocation(70))
+	queue.Enqueue(time.Now().Add(time.Duration(-3_000_000_000)), queueing.MessageLocation(140))
 
-	messageA := NewQueueMessage()
-	messageB := NewQueueMessage()
-
-	err = repo.Create(messageA)
-	if err != nil {
-		panic(err)
-	}
-
-	err = repo.Create(messageB)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(repo.GetByID(uuid.MustParse(*messageA.MessageID)))
-	fmt.Println(repo.GetByID(uuid.MustParse(*messageB.MessageID)))
+	fmt.Println(queue.Dequeue())
 }
 
-func NewQueueMessage() *queueing.QueueMessage {
-	messageID := uuid.NewString()
-	timestamp := time.Now().Unix()
-	data := []byte("Hello World")
-	dataHash := []byte("abc")
-
-	return &queueing.QueueMessage{
-		MessageID:  &messageID,
-		Timestamp:  &timestamp,
-		Data:       data,
-		DataHash:   dataHash,
-		Attributes: map[string]string{},
-	}
-}
+//
+//func main() {
+//	repo, err := queueing.SetupQueueMessageRepository("abc")
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	messageA := NewQueueMessage()
+//	messageB := NewQueueMessage()
+//
+//	err = repo.Create(messageA)
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	err = repo.Create(messageB)
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	fmt.Println(repo.GetByID(uuid.MustParse(*messageA.MessageID)))
+//	fmt.Println(repo.GetByID(uuid.MustParse(*messageB.MessageID)))
+//}
+//
+//func NewQueueMessage() *queueing.QueueMessage {
+//	messageID := uuid.NewString()
+//	timestamp := time.Now().UnixMicro()
+//	data := []byte("Hello World")
+//	dataHash := []byte("abc")
+//
+//	return &queueing.QueueMessage{
+//		MessageID:  &messageID,
+//		Timestamp:  &timestamp,
+//		Data:       data,
+//		DataHash:   dataHash,
+//		Attributes: map[string]string{},
+//	}
+//}
