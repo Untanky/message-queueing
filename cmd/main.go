@@ -4,27 +4,49 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	queueing "message-queueing"
+	"os"
+	"time"
 )
 
 func main() {
+	file, err := os.OpenFile("data", os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		panic(err)
+	}
+
+	persister := queueing.NewPersister(file)
 	index := queueing.NewNaiveIndex()
 
-	a := queueing.MessageId(uuid.New())
-	b := queueing.MessageId(uuid.New())
-	c := queueing.MessageId(uuid.New())
+	repo := queueing.NewQueueMessageRepository(persister, index)
 
-	index.Set(a, 0)
-	index.Set(b, 1234)
-	index.Set(c, 2468)
+	messageA := NewQueueMessage()
+	messageB := NewQueueMessage()
 
-	fmt.Println(index.Get(a))
-	fmt.Println(index.Get(b))
-	fmt.Println(index.Get(c))
-	fmt.Println(index.Get(queueing.MessageId(uuid.New())))
+	err = repo.Create(messageA)
+	if err != nil {
+		panic(err)
+	}
 
-	fmt.Println(index)
+	err = repo.Create(messageB)
+	if err != nil {
+		panic(err)
+	}
 
-	index.Delete(a)
+	fmt.Println(repo.GetByID(uuid.MustParse(*messageA.MessageID)))
+	fmt.Println(repo.GetByID(uuid.MustParse(*messageB.MessageID)))
+}
 
-	fmt.Println(index)
+func NewQueueMessage() *queueing.QueueMessage {
+	messageID := uuid.NewString()
+	timestamp := time.Now().Unix()
+	data := []byte("Hello World")
+	dataHash := []byte("abc")
+
+	return &queueing.QueueMessage{
+		MessageID:  &messageID,
+		Timestamp:  &timestamp,
+		Data:       data,
+		DataHash:   dataHash,
+		Attributes: map[string]string{},
+	}
 }

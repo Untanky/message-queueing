@@ -13,18 +13,11 @@ type Queue interface {
 	Acknowledge(messageID uuid.UUID) error
 }
 
-type MessageId uuid.UUID
-type MessageLocation uint64
-
-type Persister interface {
-	Write([]byte) (int64, error)
-	Read(location int64) ([]byte, error)
-}
-
-type Index[Key comparable, Value any] interface {
-	Get(id MessageId) (MessageLocation, error)
-	Set(id MessageId, location MessageLocation) error
-	Delete(id MessageId) (MessageLocation, error)
+type Repository interface {
+	GetByID(id uuid.UUID) (*QueueMessage, error)
+	Create(message *QueueMessage) error
+	Update(message *QueueMessage) error
+	Delete(message *QueueMessage) error
 }
 
 type globalQueueService struct {
