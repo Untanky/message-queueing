@@ -3,8 +3,6 @@ package queueing
 import (
 	"errors"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/proto"
-	"sync"
 )
 
 type Queue interface {
@@ -21,37 +19,19 @@ type Repository interface {
 }
 
 type globalQueueService struct {
-	lock              sync.Locker
 	acknowledgeBuffer []uuid.UUID
 
 	priorityQueue Queue
 
-	persister    Persister
-	primaryIndex Index[MessageId, MessageLocation]
+	repo Repository
 }
 
 func (queue *globalQueueService) Enqueue(messages ...*QueueMessage) error {
-	queue.lock.Lock()
-	defer queue.lock.Unlock()
-
 	var e error
 	for _, message := range messages {
-		data, err := proto.Marshal(message)
+		err := queue.repo.Create(message)
 		if err != nil {
 			e = errors.Join(e, err)
-			continue
-		}
-
-		location, err := queue.persister.Write(data)
-		if err != nil {
-			e = errors.Join(e, err)
-			continue
-		}
-
-		err = queue.primaryIndex.Set(MessageId(uuid.MustParse(*message.MessageID)), MessageLocation(location))
-		if err != nil {
-			e = errors.Join(e, err)
-			continue
 		}
 	}
 

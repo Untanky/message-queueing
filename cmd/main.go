@@ -4,20 +4,14 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	queueing "message-queueing"
-	"os"
 	"time"
 )
 
 func main() {
-	file, err := os.OpenFile("data", os.O_CREATE|os.O_RDWR, 0600)
+	repo, err := queueing.SetupQueueMessageRepository("abc")
 	if err != nil {
 		panic(err)
 	}
-
-	persister := queueing.NewPersister(file)
-	index := queueing.NewNaiveIndex()
-
-	repo := queueing.NewQueueMessageRepository(persister, index)
 
 	messageA := NewQueueMessage()
 	messageB := NewQueueMessage()
