@@ -12,7 +12,7 @@ func main() {
 	queue.Enqueue(time.Now().Add(time.Duration(-2_000_000_000)), queueing.MessageLocation(70))
 	queue.Enqueue(time.Now().Add(time.Duration(-3_000_000_000)), queueing.MessageLocation(140))
 
-	fmt.Println(queue.Dequeue())
+	fmt.Println(queue.Dequeue(time.Now()))
 }
 
 //

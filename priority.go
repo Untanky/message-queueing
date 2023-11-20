@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
+	"io"
 )
 
-type Queue interface {
-	Enqueue(ctx context.Context, messages ...*QueueMessage) error
-	Dequeue(ctx context.Context, messages []*QueueMessage) (int, error)
+type Queue[Value any] interface {
+	Enqueue(ctx context.Context, messages ...Value) error
+	Dequeue(ctx context.Context, messages []Value) (int, error)
 	Acknowledge(ctx context.Context, messageID uuid.UUID) error
 }
 
@@ -20,11 +21,43 @@ type Repository interface {
 	Delete(message *QueueMessage) error
 }
 
+type walQueueService struct {
+	log io.Writer
+
+	service Queue[*QueueMessage]
+}
+
+func NewWriteAheadLogQueueService(writer io.Writer, service Queue[*QueueMessage]) Queue[*QueueMessage] {
+	return &walQueueService{
+		log:     writer,
+		service: service,
+	}
+}
+
+func (queue *walQueueService) Enqueue(ctx context.Context, messages ...*QueueMessage) error {
+	queue.log.Write([]byte{})
+
+	return queue.service.Enqueue(ctx, messages...)
+}
+
+func (queue *walQueueService) Dequeue(ctx context.Context, messages []*QueueMessage) (int, error) {
+	n, err := queue.service.Dequeue(ctx, messages)
+
+	queue.log.Write([]byte{})
+
+	return n, err
+}
+
+func (queue *walQueueService) Acknowledge(ctx context.Context, messageID uuid.UUID) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 type globalQueueService struct {
 	repo Repository
 }
 
-func NewQueue(repo Repository) Queue {
+func NewQueueService(repo Repository) Queue[*QueueMessage] {
 	return &globalQueueService{
 		repo: repo,
 	}
