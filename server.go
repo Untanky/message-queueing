@@ -14,44 +14,31 @@ type WriteAheadLog interface {
 type MessageQueueingServer struct {
 	UnimplementedQueueServiceServer
 
-	wal WriteAheadLog
+	queueService Queue[*QueueMessage]
 }
 
-func (m MessageQueueingServer) SubmitMessages(
+func NewMessageQueueingServer(service Queue[*QueueMessage]) QueueServiceServer {
+	return &MessageQueueingServer{
+		queueService: service,
+	}
+}
+
+func (m *MessageQueueingServer) SubmitMessages(
 	ctx context.Context, request *SubmitMessagesRequest,
 ) (*SubmitMessagesResponse, error) {
-	receipts := make([]*SubmitReceipt, len(request.Messages))
+	messages := make([]*QueueMessage, 0, len(request.Messages))
 
 	for _, rawQueueMessage := range request.Messages {
-		queueMessage := rawQueueMessage.ToQueueMessage()
-		err := m.wal.Write(ctx, queueMessage)
-		if err != nil {
-			f := false
-			reason := err.Error()
+		messages = append(messages, rawQueueMessage.ToQueueMessage())
+	}
 
-			receipts = append(
-				receipts, &SubmitReceipt{
-					Ok:        &f,
-					MessageID: queueMessage.MessageID,
-					Reason:    &reason,
-				},
-			)
-		} else {
-			t := true
-
-			receipts = append(
-				receipts, &SubmitReceipt{
-					Ok:        &t,
-					MessageID: queueMessage.MessageID,
-					Timestamp: queueMessage.Timestamp,
-					DataHash:  queueMessage.DataHash,
-				},
-			)
-		}
+	err := m.queueService.Enqueue(ctx, messages...)
+	if err != nil {
+		return nil, err
 	}
 
 	return &SubmitMessagesResponse{
-		Receipts: receipts,
+		Receipts: []*SubmitReceipt{},
 	}, nil
 }
 
@@ -70,18 +57,18 @@ func (m *RawQueueMessage) ToQueueMessage() *QueueMessage {
 	}
 }
 
-func (m MessageQueueingServer) RetrieveMessages(
+func (m *MessageQueueingServer) RetrieveMessages(
 	ctx context.Context, request *RetrieveMessagesRequest,
 ) (*RetrieveMessagesResponse, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (m MessageQueueingServer) AcknowledgeMessages(
+func (m *MessageQueueingServer) AcknowledgeMessages(
 	ctx context.Context, request *AcknowledgeMessagesRequest,
 ) (*AcknowledgeMessagesResponse, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (m MessageQueueingServer) mustEmbedUnimplementedQueueServiceServer() {}
+func (m *MessageQueueingServer) mustEmbedUnimplementedQueueServiceServer() {}

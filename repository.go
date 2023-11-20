@@ -57,7 +57,7 @@ func SetupQueueMessageRepository(id string) (Repository, error) {
 
 	fmt.Println(index.(*naiveIndex).data)
 
-	repo := NewQueueMessageRepository(persister, index)
+	repo := NewQueueMessageRepository(persister, index, NewTimeoutQueue())
 	return repo, nil
 }
 
@@ -83,12 +83,15 @@ func readNextMessage(reader io.Reader) (*QueueMessage, int64, error) {
 	return &message, length, nil
 }
 
-func NewQueueMessageRepository(persister Persister, index Index[MessageId, MessageLocation]) Repository {
+func NewQueueMessageRepository(
+	persister Persister, index Index[MessageId, MessageLocation], queue *timeoutQueue,
+) Repository {
 	return &queueMessageRepository{
 		lock: &sync.Mutex{},
 
-		persister: persister,
-		index:     index,
+		persister:    persister,
+		index:        index,
+		timeoutQueue: queue,
 	}
 }
 

@@ -1,55 +1,41 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"google.golang.org/grpc"
+	"log"
 	queueing "message-queueing"
+	"net"
+	"os"
 	"time"
 )
 
+var port = flag.Int("port", 8080, "the port of the application")
+
 func main() {
-	queue := queueing.NewTimeoutQueue()
-	queue.Enqueue(time.Now().Add(time.Duration(-1_000_000_000)), queueing.MessageLocation(0))
-	queue.Enqueue(time.Now().Add(time.Duration(-2_000_000_000)), queueing.MessageLocation(70))
-	queue.Enqueue(time.Now().Add(time.Duration(-3_000_000_000)), queueing.MessageLocation(140))
+	flag.Parse()
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
 
-	fmt.Println(queue.Dequeue(time.Now()))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	walFile, err := os.Create(fmt.Sprintf("data/wal-%x", time.Now().UnixMilli()))
+	if err != nil {
+		panic(err)
+	}
+
+	repo, err := queueing.SetupQueueMessageRepository("abc")
+	if err != nil {
+		panic(err)
+	}
+
+	service := queueing.NewQueueService(repo)
+	service = queueing.NewWriteAheadLogQueueService(walFile, service)
+
+	var opts []grpc.ServerOption
+	grpcServer := grpc.NewServer(opts...)
+	queueing.RegisterQueueServiceServer(grpcServer, queueing.NewMessageQueueingServer(service))
+	grpcServer.Serve(lis)
 }
-
-//
-//func main() {
-//	repo, err := queueing.SetupQueueMessageRepository("abc")
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	messageA := NewQueueMessage()
-//	messageB := NewQueueMessage()
-//
-//	err = repo.Create(messageA)
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	err = repo.Create(messageB)
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	fmt.Println(repo.GetByID(uuid.MustParse(*messageA.MessageID)))
-//	fmt.Println(repo.GetByID(uuid.MustParse(*messageB.MessageID)))
-//}
-//
-//func NewQueueMessage() *queueing.QueueMessage {
-//	messageID := uuid.NewString()
-//	timestamp := time.Now().UnixMicro()
-//	data := []byte("Hello World")
-//	dataHash := []byte("abc")
-//
-//	return &queueing.QueueMessage{
-//		MessageID:  &messageID,
-//		Timestamp:  &timestamp,
-//		Data:       data,
-//		DataHash:   dataHash,
-//		Attributes: map[string]string{},
-//	}
-//}
