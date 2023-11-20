@@ -70,18 +70,18 @@ func (queue *timeoutQueue) Enqueue(timeout time.Time, location MessageLocation) 
 	heap.Push(queue.heap, queueTuple{timeout: timeout, location: location})
 }
 
-func (queue *timeoutQueue) Dequeue() (MessageLocation, error) {
+func (queue *timeoutQueue) Dequeue(before time.Time) (MessageLocation, error) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
 
-	return queue.dequeue()
+	return queue.dequeue(before)
 }
 
-func (queue *timeoutQueue) dequeue() (MessageLocation, error) {
+func (queue *timeoutQueue) dequeue(before time.Time) (MessageLocation, error) {
 	value := heap.Pop(queue.heap)
 	tuple := value.(queueTuple)
 	fmt.Println(tuple.timeout, time.Now())
-	if tuple.timeout.After(time.Now()) {
+	if tuple.timeout.After(before) {
 		heap.Push(queue.heap, value)
 		return 0, errors.New("next message not ready yet")
 	}
@@ -89,14 +89,14 @@ func (queue *timeoutQueue) dequeue() (MessageLocation, error) {
 	return tuple.location, nil
 }
 
-func (queue *timeoutQueue) DequeueMultiple(location []MessageLocation) (int, error) {
+func (queue *timeoutQueue) DequeueMultiple(location []MessageLocation, before time.Time) (int, error) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
 
 	l := len(location)
 
 	for i := 0; i < l; i++ {
-		loc, err := queue.dequeue()
+		loc, err := queue.dequeue(before)
 		if err != nil {
 			return i, fmt.Errorf("maximum number of messages retrieved, because %w", err)
 		}

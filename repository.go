@@ -117,7 +117,7 @@ func (q queueMessageRepository) GetByID(id uuid.UUID) (*QueueMessage, error) {
 
 func (q queueMessageRepository) GetActive(messages []*QueueMessage) (int, error) {
 	locations := make([]MessageLocation, len(messages))
-	n, err := q.timeoutQueue.DequeueMultiple(locations)
+	n, err := q.timeoutQueue.DequeueMultiple(locations, time.Now())
 	actual := n
 	for i := 0; i < n; i++ {
 		data, e := q.persister.Read(int64(locations[i]))
