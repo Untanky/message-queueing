@@ -13,17 +13,20 @@ type Queue interface {
 
 type Repository interface {
 	GetByID(id uuid.UUID) (*QueueMessage, error)
+	GetActive(messages []*QueueMessage) (int, error)
 	Create(message *QueueMessage) error
 	Update(message *QueueMessage) error
 	Delete(message *QueueMessage) error
 }
 
 type globalQueueService struct {
-	acknowledgeBuffer []uuid.UUID
-
-	priorityQueue Queue
-
 	repo Repository
+}
+
+func NewQueue(repo Repository) Queue {
+	return &globalQueueService{
+		repo: repo,
+	}
 }
 
 func (queue *globalQueueService) Enqueue(messages ...*QueueMessage) error {
@@ -39,12 +42,10 @@ func (queue *globalQueueService) Enqueue(messages ...*QueueMessage) error {
 }
 
 func (queue *globalQueueService) Dequeue(messages []*QueueMessage) (int, error) {
-	//TODO implement me
-	panic("implement me")
+	return queue.repo.GetActive(messages)
 }
 
 func (queue *globalQueueService) Acknowledge(messageID uuid.UUID) error {
-	queue.acknowledgeBuffer = append(queue.acknowledgeBuffer, messageID)
-
-	return nil
+	//TODO implement me
+	panic("implement me")
 }

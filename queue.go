@@ -48,14 +48,14 @@ func (h *heapWrapper) Pop() any {
 	return val
 }
 
-type heapQueue struct {
+type timeoutQueue struct {
 	lock sync.Locker
 
 	heap *heapWrapper
 }
 
-func NewHeapQueue() *heapQueue {
-	return &heapQueue{
+func NewTimeoutQueue() *timeoutQueue {
+	return &timeoutQueue{
 		lock: &sync.Mutex{},
 		heap: &heapWrapper{
 			data: make([]queueTuple, 0, 16),
@@ -63,21 +63,21 @@ func NewHeapQueue() *heapQueue {
 	}
 }
 
-func (queue *heapQueue) Enqueue(timeout time.Time, location MessageLocation) {
+func (queue *timeoutQueue) Enqueue(timeout time.Time, location MessageLocation) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
 
 	heap.Push(queue.heap, queueTuple{timeout: timeout, location: location})
 }
 
-func (queue *heapQueue) Dequeue() (MessageLocation, error) {
+func (queue *timeoutQueue) Dequeue() (MessageLocation, error) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
 
 	return queue.dequeue()
 }
 
-func (queue *heapQueue) dequeue() (MessageLocation, error) {
+func (queue *timeoutQueue) dequeue() (MessageLocation, error) {
 	value := heap.Pop(queue.heap)
 	tuple := value.(queueTuple)
 	fmt.Println(tuple.timeout, time.Now())
@@ -89,7 +89,7 @@ func (queue *heapQueue) dequeue() (MessageLocation, error) {
 	return tuple.location, nil
 }
 
-func (queue *heapQueue) DequeueMultiple(location []MessageLocation) (int, error) {
+func (queue *timeoutQueue) DequeueMultiple(location []MessageLocation) (int, error) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
 

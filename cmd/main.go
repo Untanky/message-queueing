@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	queue := queueing.NewHeapQueue()
+	queue := queueing.NewTimeoutQueue()
 	queue.Enqueue(time.Now().Add(time.Duration(-1_000_000_000)), queueing.MessageLocation(0))
 	queue.Enqueue(time.Now().Add(time.Duration(-2_000_000_000)), queueing.MessageLocation(70))
 	queue.Enqueue(time.Now().Add(time.Duration(-3_000_000_000)), queueing.MessageLocation(140))

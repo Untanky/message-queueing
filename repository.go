@@ -2,12 +2,14 @@ package queueing
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 	"io"
 	"os"
 	"sync"
+	"time"
 )
 
 type MessageId uuid.UUID
@@ -19,16 +21,19 @@ type Persister interface {
 }
 
 type Index[Key comparable, Value any] interface {
-	Get(id MessageId) (MessageLocation, error)
-	Set(id MessageId, location MessageLocation) error
-	Delete(id MessageId) (MessageLocation, error)
+	Get(id MessageId) (MessageLocation, bool)
+	Set(id MessageId, location MessageLocation)
+	Delete(id MessageId) (MessageLocation, bool)
 }
+
+const defaultDelay = time.Duration(1 * time.Minute)
 
 type queueMessageRepository struct {
 	lock sync.Locker
 
-	persister Persister
-	index     Index[MessageId, MessageLocation]
+	persister    Persister
+	index        Index[MessageId, MessageLocation]
+	timeoutQueue *timeoutQueue
 }
 
 func SetupQueueMessageRepository(id string) (Repository, error) {
@@ -91,9 +96,9 @@ func (q queueMessageRepository) GetByID(id uuid.UUID) (*QueueMessage, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	loc, err := q.index.Get(MessageId(id))
-	if err != nil {
-		return nil, err
+	loc, ok := q.index.Get(MessageId(id))
+	if !ok {
+		return nil, NotFoundError
 	}
 
 	data, err := q.persister.Read(int64(loc))
@@ -108,6 +113,28 @@ func (q queueMessageRepository) GetByID(id uuid.UUID) (*QueueMessage, error) {
 	}
 
 	return &queueMessage, nil
+}
+
+func (q queueMessageRepository) GetActive(messages []*QueueMessage) (int, error) {
+	locations := make([]MessageLocation, len(messages))
+	n, err := q.timeoutQueue.DequeueMultiple(locations)
+	actual := n
+	for i := 0; i < n; i++ {
+		data, e := q.persister.Read(int64(locations[i]))
+		if e != nil {
+			actual -= 1
+			err = errors.Join(err, e)
+			continue
+		}
+
+		e = proto.Unmarshal(data, messages[actual])
+		if e != nil {
+			actual -= 1
+			err = errors.Join(err, e)
+		}
+	}
+
+	return n, err
 }
 
 func (q queueMessageRepository) Create(message *QueueMessage) error {
@@ -129,10 +156,8 @@ func (q queueMessageRepository) Create(message *QueueMessage) error {
 		return err
 	}
 
-	err = q.index.Set(MessageId(id), MessageLocation(loc))
-	if err != nil {
-		return err
-	}
+	q.index.Set(MessageId(id), MessageLocation(loc))
+	q.timeoutQueue.Enqueue(time.Now().Add(defaultDelay), MessageLocation(loc))
 
 	return nil
 }

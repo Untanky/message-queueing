@@ -37,20 +37,20 @@ func NewNaiveIndex() Index[MessageId, MessageLocation] {
 	}
 }
 
-func (index *naiveIndex) Get(id MessageId) (MessageLocation, error) {
+func (index *naiveIndex) Get(id MessageId) (MessageLocation, bool) {
 	index.lock.Lock()
 	defer index.lock.Unlock()
 
 	target := indexTuple{id: id}
 	i, ok := slices.BinarySearchFunc(index.data, target, compareTuples)
 	if !ok {
-		return 0, NotFoundError
+		return 0, false
 	}
 
-	return index.data[i].location, nil
+	return index.data[i].location, true
 }
 
-func (index *naiveIndex) Set(id MessageId, location MessageLocation) error {
+func (index *naiveIndex) Set(id MessageId, location MessageLocation) {
 	index.lock.Lock()
 	defer index.lock.Unlock()
 
@@ -63,21 +63,21 @@ func (index *naiveIndex) Set(id MessageId, location MessageLocation) error {
 	slices.SortFunc(unsorted, compareTuples)
 	index.data = unsorted
 
-	return nil
+	return
 }
 
-func (index *naiveIndex) Delete(id MessageId) (MessageLocation, error) {
+func (index *naiveIndex) Delete(id MessageId) (MessageLocation, bool) {
 	index.lock.Lock()
 	defer index.lock.Unlock()
 
 	target := indexTuple{id: id}
 	i, ok := slices.BinarySearchFunc(index.data, target, compareTuples)
 	if !ok {
-		return 0, NotFoundError
+		return 0, false
 	}
 
 	loc := index.data[i].location
 	index.data = append(index.data[:i], index.data[i+1:]...)
 
-	return loc, nil
+	return loc, true
 }

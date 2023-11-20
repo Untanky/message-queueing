@@ -13,6 +13,7 @@ message QueueMessage {
   required int64 timestamp = 3;
   required bytes dataHash = 4;
   map<string, string> attributes = 5;
+  required int64 lastRetrieved = 6;
 }
 
 message SubmitReceipt {
