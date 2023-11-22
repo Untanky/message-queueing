@@ -13,6 +13,8 @@ type queueTuple struct {
 	location MessageLocation
 }
 
+var NextMessageNotReady = errors.New("next message not ready yet")
+
 type heapWrapper struct {
 	data []queueTuple
 }
@@ -43,8 +45,6 @@ func (h *heapWrapper) Pop() any {
 	l := len(h.data)
 	val := h.data[l-1]
 	h.data = h.data[:l-1]
-
-	fmt.Println(h.data, val)
 	return val
 }
 
@@ -80,10 +80,9 @@ func (queue *timeoutQueue) Dequeue(before time.Time) (MessageLocation, error) {
 func (queue *timeoutQueue) dequeue(before time.Time) (MessageLocation, error) {
 	value := heap.Pop(queue.heap)
 	tuple := value.(queueTuple)
-	fmt.Println(tuple.timeout, time.Now())
 	if tuple.timeout.After(before) {
 		heap.Push(queue.heap, value)
-		return 0, errors.New("next message not ready yet")
+		return 0, NextMessageNotReady
 	}
 
 	return tuple.location, nil

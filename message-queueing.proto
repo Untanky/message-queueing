@@ -13,7 +13,6 @@ message QueueMessage {
   required int64 timestamp = 3;
   required bytes dataHash = 4;
   map<string, string> attributes = 5;
-  required int64 lastRetrieved = 6;
 }
 
 message SubmitReceipt {
@@ -28,12 +27,19 @@ message SubmitMessagesRequest {
   required string queueID = 1;
   repeated RawQueueMessage messages = 2;
 }
+
 message SubmitMessagesResponse {
   repeated SubmitReceipt receipts = 1;
 }
 
-message RetrieveMessagesRequest {}
-message RetrieveMessagesResponse {}
+message RetrieveMessagesRequest {
+  required int32 count = 1;
+}
+
+message RetrieveMessagesResponse {
+  required int32 count = 1;
+  repeated QueueMessage messages = 2;
+}
 
 message AcknowledgeMessagesRequest {}
 message AcknowledgeMessagesResponse {}

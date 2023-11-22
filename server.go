@@ -3,6 +3,7 @@ package queueing
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"github.com/google/uuid"
 	"time"
 )
@@ -60,8 +61,18 @@ func (m *RawQueueMessage) ToQueueMessage() *QueueMessage {
 func (m *MessageQueueingServer) RetrieveMessages(
 	ctx context.Context, request *RetrieveMessagesRequest,
 ) (*RetrieveMessagesResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	var messages = make([]*QueueMessage, *request.Count)
+	n, err := m.queueService.Dequeue(ctx, messages)
+	if err != nil && !errors.Is(err, NextMessageNotReady) {
+		return nil, err
+	}
+
+	n32 := int32(n)
+
+	return &RetrieveMessagesResponse{
+		Count:    &n32,
+		Messages: messages[:n],
+	}, nil
 }
 
 func (m *MessageQueueingServer) AcknowledgeMessages(
