@@ -2,16 +2,31 @@ package message_queueing;
 
 option go_package="./queueing";
 
+
+// Queue message used as input
+//
+// Data type used when submitting new messages to the system.
 message RawQueueMessage {
-  required bytes rawMessage = 1;
+  // raw message data as a byte array, the bytes will be returned as they are received
+  required bytes data = 1;
+  // attributes associated with the message, can be used to represent metadata
   map<string, string> attributes = 2;
 }
 
+// Queue message representation in the system
+//
+// QueueMessage represents the a RawQueueMessage after it has been submitted
+// into the system. The RawQueueMessage is enhanced with metadata and identifiers
 message QueueMessage {
+  // raw message data as a byte array
   required bytes data = 1;
-  required string messageID = 2;
+  // the message unique id (UUID) as a byte array
+  required bytes messageID = 2;
+  // timestamp when the message entered the system
   required int64 timestamp = 3;
+  // md5 hash of the raw message data
   required bytes dataHash = 4;
+  // attributes associated with the message
   map<string, string> attributes = 5;
 }
 
@@ -44,6 +59,7 @@ message RetrieveMessagesResponse {
 message AcknowledgeMessagesRequest {}
 message AcknowledgeMessagesResponse {}
 
+//
 service QueueService {
   rpc SubmitMessages(SubmitMessagesRequest) returns (SubmitMessagesResponse);
   rpc RetrieveMessages(RetrieveMessagesRequest) returns (RetrieveMessagesResponse);

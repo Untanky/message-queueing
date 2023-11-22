@@ -44,16 +44,16 @@ func (m *MessageQueueingServer) SubmitMessages(
 }
 
 func (m *RawQueueMessage) ToQueueMessage() *QueueMessage {
-	messageID := uuid.NewString()
+	messageID := uuid.New()
 	now := time.Now().Unix()
 	hash := sha256.New()
-	hash.Write(m.RawMessage)
+	hash.Write(m.Data)
 
 	return &QueueMessage{
-		MessageID:  &messageID,
+		MessageID:  messageID[:],
 		Timestamp:  &now,
 		Attributes: m.Attributes,
-		Data:       m.RawMessage,
+		Data:       m.Data,
 		DataHash:   hash.Sum(nil),
 	}
 }

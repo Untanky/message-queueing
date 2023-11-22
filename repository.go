@@ -51,7 +51,7 @@ func SetupQueueMessageRepository(id string) (Repository, error) {
 		if err == io.EOF {
 			break
 		}
-		index.Set(MessageId(uuid.MustParse(*message.MessageID)), MessageLocation(loc))
+		index.Set(MessageId(uuid.Must(uuid.FromBytes(message.MessageID))), MessageLocation(loc))
 		loc += length + 8
 	}
 
@@ -146,7 +146,7 @@ func (q queueMessageRepository) GetActive(messages []*QueueMessage) (int, error)
 }
 
 func (q queueMessageRepository) Create(message *QueueMessage) error {
-	id, err := uuid.Parse(*message.MessageID)
+	id, err := uuid.FromBytes(message.MessageID)
 	if err != nil {
 		return err
 	}
