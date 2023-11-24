@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.28.1
 // 	protoc        v4.24.3
-// source: message-queueing.proto
+// source: message_queueing.proto
 
 package queueing
 

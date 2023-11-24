@@ -4,4 +4,4 @@ docs/
 .dockerignore
 Dockerfile
 Makefile
-message-queueing.proto
+message_queueing.proto
