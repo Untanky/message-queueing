@@ -24,7 +24,6 @@ type Service interface {
 
 type Repository interface {
 	GetByID(id uuid.UUID) (*QueueMessage, error)
-	GetAvailable(messages []*QueueMessage) (int, error)
 	Create(message *QueueMessage) error
 	Update(message *QueueMessage) error
 	Delete(message *QueueMessage) error
@@ -154,8 +153,22 @@ func (queue *globalQueueService) Dequeue(ctx context.Context, messages []*QueueM
 }
 
 func (queue *globalQueueService) Retrieve(ctx context.Context, messages []*QueueMessage) (int, error) {
+	desired := len(messages)
+	count := 0
+	var err error
+
+	for count < desired && err != nil {
+		additional, e := queue.retrieveMessages(ctx, messages[count:])
+		count += additional
+		err = errors.Join(err, e)
+	}
+
+	return count, err
+}
+
+func (queue *globalQueueService) retrieveMessages(ctx context.Context, messages []*QueueMessage) (int, error) {
 	locations := make([]MessageId, len(messages))
-	messages = messages[:0]
+	slice := messages[:0]
 
 	now := time.Now()
 	n, err := queue.timeoutQueue.DequeueMultiple(locations, now)
@@ -168,10 +181,10 @@ func (queue *globalQueueService) Retrieve(ctx context.Context, messages []*Queue
 		}
 
 		queue.timeoutQueue.Enqueue(now.Add(defaultDelay), locations[i])
-		messages = append(messages, message)
+		slice = append(slice, message)
 	}
 
-	return len(messages), err
+	return len(slice), err
 }
 
 func (queue *globalQueueService) Acknowledge(ctx context.Context, messageID uuid.UUID) error {
