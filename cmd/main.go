@@ -83,7 +83,7 @@ func setupOTel() {
 	}
 
 	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(meterExporter, sdkmetric.WithInterval(3*time.Second))),
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(meterExporter, sdkmetric.WithInterval(time.Minute))),
 		sdkmetric.WithResource(r),
 	)
 

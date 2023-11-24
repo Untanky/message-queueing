@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"time"
 )
@@ -27,20 +28,40 @@ func NewMessageQueueingServer(service Service) QueueServiceServer {
 func (m *MessageQueueingServer) SubmitMessages(
 	ctx context.Context, request *SubmitMessagesRequest,
 ) (*SubmitMessagesResponse, error) {
-	messages := make([]*QueueMessage, 0, len(request.Messages))
+	receipts := make([]*SubmitReceipt, 0, len(request.Messages))
+	var joinErr error
 
 	for _, rawQueueMessage := range request.Messages {
-		messages = append(messages, rawQueueMessage.ToQueueMessage())
+		message := rawQueueMessage.ToQueueMessage()
+		err := m.queueService.Enqueue(ctx, message)
+
+		joinErr = errors.Join(joinErr, err)
+
+		messageID := uuid.UUID(message.MessageID).String()
+		var ok = err == nil
+		var reason string
+		if !ok {
+			reason = err.Error()
+		}
+
+		receipts = append(
+			receipts, &SubmitReceipt{
+				MessageID: &messageID,
+				Ok:        &ok,
+				Reason:    &reason,
+				Timestamp: message.Timestamp,
+				DataHash:  message.DataHash,
+			},
+		)
 	}
 
-	err := m.queueService.Enqueue(ctx, messages...)
-	if err != nil {
-		return nil, err
+	if joinErr != nil {
+		joinErr = fmt.Errorf("there were some errors: %w", joinErr)
 	}
 
 	return &SubmitMessagesResponse{
-		Receipts: []*SubmitReceipt{},
-	}, nil
+		Receipts: receipts,
+	}, joinErr
 }
 
 func (m *RawQueueMessage) ToQueueMessage() *QueueMessage {
@@ -78,8 +99,31 @@ func (m *MessageQueueingServer) RetrieveMessages(
 func (m *MessageQueueingServer) AcknowledgeMessages(
 	ctx context.Context, request *AcknowledgeMessagesRequest,
 ) (*AcknowledgeMessagesResponse, error) {
-	//TODO implement me
-	panic("implement me")
+	receipts := make([]*AcknowledgeReceipt, 0, len(request.MessageIDs))
+
+	for _, idString := range request.MessageIDs {
+		id := uuid.MustParse(idString)
+
+		e := m.queueService.Acknowledge(ctx, id)
+
+		var ok = e == nil
+		var reason string
+		if !ok {
+			reason = e.Error()
+		}
+
+		receipts = append(
+			receipts, &AcknowledgeReceipt{
+				MessageID: &idString,
+				Ok:        &ok,
+				Reason:    &reason,
+			},
+		)
+	}
+
+	return &AcknowledgeMessagesResponse{
+		Receipts: receipts,
+	}, nil
 }
 
 func (m *MessageQueueingServer) mustEmbedUnimplementedQueueServiceServer() {}

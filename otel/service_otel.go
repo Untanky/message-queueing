@@ -49,13 +49,13 @@ func WrapOTelPriorityQueue(service queueing.Service) (
 	}, nil
 }
 
-func (o *otelPriorityQueue) Enqueue(ctx context.Context, messages ...*queueing.QueueMessage) error {
+func (o *otelPriorityQueue) Enqueue(ctx context.Context, message *queueing.QueueMessage) error {
 	ctx, span := o.tracer.Start(ctx, "Enqueue")
 	defer span.End()
 
-	o.messagesWritten.Add(ctx, int64(len(messages)))
+	o.messagesWritten.Add(ctx, 1)
 
-	return o.service.Enqueue(ctx, messages...)
+	return o.service.Enqueue(ctx, message)
 }
 
 func (o *otelPriorityQueue) Dequeue(ctx context.Context, messages []*queueing.QueueMessage) (int, error) {

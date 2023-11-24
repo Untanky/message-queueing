@@ -33,10 +33,11 @@ message QueueMessage {
 }
 
 message SubmitReceipt {
-  required bool ok = 1;
-  required string messageID = 2;
-  optional int64 timestamp = 3;
-  optional bytes dataHash = 4;
+  required string messageID = 1;
+  required bool ok = 2;
+  optional string reason = 3;
+  optional int64 timestamp = 4;
+  optional bytes dataHash = 5;
 }
 
 message SubmitMessagesRequest {
@@ -57,8 +58,19 @@ message RetrieveMessagesResponse {
   repeated QueueMessage messages = 2;
 }
 
-message AcknowledgeMessagesRequest {}
-message AcknowledgeMessagesResponse {}
+message AcknowledgeMessagesRequest {
+  repeated string messageIDs = 1;
+}
+
+message AcknowledgeReceipt {
+  required string messageID = 1;
+  required bool ok = 2;
+  optional string reason = 3;
+}
+
+message AcknowledgeMessagesResponse {
+  repeated AcknowledgeReceipt receipts = 1;
+}
 
 //
 service QueueService {

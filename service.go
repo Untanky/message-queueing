@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"io"
 	"time"
@@ -16,7 +15,7 @@ var (
 )
 
 type Service interface {
-	Enqueue(ctx context.Context, messages ...*QueueMessage) error
+	Enqueue(ctx context.Context, message *QueueMessage) error
 	Dequeue(ctx context.Context, messages []*QueueMessage) (int, error)
 	Retrieve(ctx context.Context, messages []*QueueMessage) (int, error)
 	Acknowledge(ctx context.Context, messageID uuid.UUID) error
@@ -47,18 +46,18 @@ func NewWriteAheadLogQueueService(writer io.Writer, service Service) Service {
 	}
 }
 
-func (queue *walQueueService) Enqueue(ctx context.Context, messages ...*QueueMessage) error {
+func (queue *walQueueService) Enqueue(ctx context.Context, message *QueueMessage) error {
 	err := json.NewEncoder(queue.log).Encode(
 		walEvent{
 			EventType: "enqueue",
-			Data:      messages,
+			Data:      message,
 		},
 	)
 	if err != nil {
 		return err
 	}
 
-	return queue.service.Enqueue(ctx, messages...)
+	return queue.service.Enqueue(ctx, message)
 }
 
 func (queue *walQueueService) Dequeue(ctx context.Context, messages []*QueueMessage) (int, error) {
@@ -72,10 +71,6 @@ func (queue *walQueueService) Dequeue(ctx context.Context, messages []*QueueMess
 	)
 
 	if walErr != nil {
-		enqErr := queue.service.Enqueue(ctx, messages...)
-		if enqErr != nil {
-			return 0, errors.Join(walErr, enqErr, WalError, FatalDequeueMitigationError)
-		}
 		return 0, errors.Join(WalError, FatalDequeueMitigationError)
 	}
 
@@ -93,10 +88,6 @@ func (queue *walQueueService) Retrieve(ctx context.Context, messages []*QueueMes
 	)
 
 	if walErr != nil {
-		enqErr := queue.service.Enqueue(ctx, messages...)
-		if enqErr != nil {
-			return 0, errors.Join(walErr, enqErr, WalError, FatalDequeueMitigationError)
-		}
 		return 0, errors.Join(WalError, FatalDequeueMitigationError)
 	}
 
@@ -120,19 +111,15 @@ func NewQueueService(repo Repository, timeoutQueue *timeoutQueue) Service {
 	}
 }
 
-func (queue *globalQueueService) Enqueue(ctx context.Context, messages ...*QueueMessage) error {
-	var e error
-	for _, message := range messages {
-		err := queue.repo.Create(message)
-		if err != nil {
-			e = errors.Join(e, err)
-		}
-		id, err := uuid.FromBytes(message.MessageID)
-		fmt.Println(message.MessageID, id, err)
-		queue.timeoutQueue.Enqueue(time.Now(), MessageId(uuid.Must(uuid.FromBytes(message.MessageID))))
+func (queue *globalQueueService) Enqueue(ctx context.Context, message *QueueMessage) error {
+	err := queue.repo.Create(message)
+	if err != nil {
+		return err
 	}
 
-	return e
+	queue.timeoutQueue.Enqueue(time.Now(), MessageId(uuid.Must(uuid.FromBytes(message.MessageID))))
+
+	return nil
 }
 
 func (queue *globalQueueService) Dequeue(ctx context.Context, messages []*QueueMessage) (int, error) {
