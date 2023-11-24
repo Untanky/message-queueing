@@ -1,6 +1,9 @@
 # Build the application from source
 ARG BUILDARCH
-FROM --platform="linux/amd64" golang:1.21 AS build-stage
+FROM --platform=$BUILDPLATFORM golang:1.21 AS build-stage
+
+ARG TARGETOS
+ARG TARGETARCH
 
 ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
 
