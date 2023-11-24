@@ -15,10 +15,10 @@ type WriteAheadLog interface {
 type MessageQueueingServer struct {
 	UnimplementedQueueServiceServer
 
-	queueService Queue[*QueueMessage]
+	queueService Service
 }
 
-func NewMessageQueueingServer(service Queue[*QueueMessage]) QueueServiceServer {
+func NewMessageQueueingServer(service Service) QueueServiceServer {
 	return &MessageQueueingServer{
 		queueService: service,
 	}

@@ -15,11 +15,11 @@ type otelPriorityQueue struct {
 	messagesAcknowledged metric.Int64Counter
 	tracer               trace.Tracer
 
-	service queueing.Queue[*queueing.QueueMessage]
+	service queueing.Service
 }
 
-func WrapOTelPriorityQueue(service queueing.Queue[*queueing.QueueMessage]) (
-	queueing.Queue[*queueing.QueueMessage], error,
+func WrapOTelPriorityQueue(service queueing.Service) (
+	queueing.Service, error,
 ) {
 	meter := otel.Meter("message-queueing")
 

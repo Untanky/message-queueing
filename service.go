@@ -15,10 +15,10 @@ var (
 	FatalDequeueMitigationError = errors.New("fatal error! writing to write ahead log failed AND could not enqueue messages again! potential data loss")
 )
 
-type Queue[Value any] interface {
-	Enqueue(ctx context.Context, messages ...Value) error
-	Dequeue(ctx context.Context, messages []Value) (int, error)
-	Retrieve(ctx context.Context, messages []Value) (int, error)
+type Service interface {
+	Enqueue(ctx context.Context, messages ...*QueueMessage) error
+	Dequeue(ctx context.Context, messages []*QueueMessage) (int, error)
+	Retrieve(ctx context.Context, messages []*QueueMessage) (int, error)
 	Acknowledge(ctx context.Context, messageID uuid.UUID) error
 }
 
@@ -38,10 +38,10 @@ type walEvent struct {
 type walQueueService struct {
 	log io.Writer
 
-	service Queue[*QueueMessage]
+	service Service
 }
 
-func NewWriteAheadLogQueueService(writer io.Writer, service Queue[*QueueMessage]) Queue[*QueueMessage] {
+func NewWriteAheadLogQueueService(writer io.Writer, service Service) Service {
 	return &walQueueService{
 		log:     writer,
 		service: service,
@@ -114,7 +114,7 @@ type globalQueueService struct {
 	timeoutQueue *timeoutQueue
 }
 
-func NewQueueService(repo Repository, timeoutQueue *timeoutQueue) Queue[*QueueMessage] {
+func NewQueueService(repo Repository, timeoutQueue *timeoutQueue) Service {
 	return &globalQueueService{
 		repo:         repo,
 		timeoutQueue: timeoutQueue,

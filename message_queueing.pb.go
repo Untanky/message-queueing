@@ -20,7 +20,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Queue message used as input
+// Service message used as input
 //
 // Data type used when submitting new messages to the system.
 type RawQueueMessage struct {
@@ -80,7 +80,7 @@ func (x *RawQueueMessage) GetAttributes() map[string]string {
 	return nil
 }
 
-// Queue message representation in the system
+// Service message representation in the system
 //
 // QueueMessage represents the a RawQueueMessage after it has been submitted
 // into the system. The RawQueueMessage is enhanced with metadata and identifiers
