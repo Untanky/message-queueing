@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"io"
+	"time"
 )
 
 var (
@@ -86,12 +88,14 @@ func (queue *walQueueService) Acknowledge(ctx context.Context, messageID uuid.UU
 }
 
 type globalQueueService struct {
-	repo Repository
+	repo         Repository
+	timeoutQueue *timeoutQueue
 }
 
-func NewQueueService(repo Repository) Queue[*QueueMessage] {
+func NewQueueService(repo Repository, timeoutQueue *timeoutQueue) Queue[*QueueMessage] {
 	return &globalQueueService{
-		repo: repo,
+		repo:         repo,
+		timeoutQueue: timeoutQueue,
 	}
 }
 
@@ -102,13 +106,29 @@ func (queue *globalQueueService) Enqueue(ctx context.Context, messages ...*Queue
 		if err != nil {
 			e = errors.Join(e, err)
 		}
+		id, err := uuid.FromBytes(message.MessageID)
+		fmt.Println(message.MessageID, id, err)
+		queue.timeoutQueue.Enqueue(time.Now(), MessageId(uuid.Must(uuid.FromBytes(message.MessageID))))
 	}
 
 	return e
 }
 
 func (queue *globalQueueService) Dequeue(ctx context.Context, messages []*QueueMessage) (int, error) {
-	return queue.repo.GetActive(messages)
+	locations := make([]MessageId, len(messages))
+	messages = messages[:0]
+	n, err := queue.timeoutQueue.DequeueMultiple(locations, time.Now())
+	for i := 0; i < n; i++ {
+		message, e := queue.repo.GetByID(uuid.UUID(locations[i]))
+		if e != nil {
+			err = errors.Join(err, e)
+			continue
+		}
+
+		messages = append(messages, message)
+	}
+
+	return len(messages), err
 }
 
 func (queue *globalQueueService) Acknowledge(ctx context.Context, messageID uuid.UUID) error {

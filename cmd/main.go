@@ -31,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	service := queueing.NewQueueService(repo)
+	service := queueing.NewQueueService(repo, queueing.NewTimeoutQueue())
 	service = queueing.NewWriteAheadLogQueueService(walFile, service)
 
 	var opts []grpc.ServerOption

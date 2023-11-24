@@ -10,7 +10,7 @@ import (
 
 type queueTuple struct {
 	timeout  time.Time
-	location MessageLocation
+	location MessageId
 }
 
 var NextMessageNotReady = errors.New("next message not ready yet")
@@ -63,32 +63,32 @@ func NewTimeoutQueue() *timeoutQueue {
 	}
 }
 
-func (queue *timeoutQueue) Enqueue(timeout time.Time, location MessageLocation) {
+func (queue *timeoutQueue) Enqueue(timeout time.Time, location MessageId) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
 
 	heap.Push(queue.heap, queueTuple{timeout: timeout, location: location})
 }
 
-func (queue *timeoutQueue) Dequeue(before time.Time) (MessageLocation, error) {
+func (queue *timeoutQueue) Dequeue(before time.Time) (MessageId, error) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
 
 	return queue.dequeue(before)
 }
 
-func (queue *timeoutQueue) dequeue(before time.Time) (MessageLocation, error) {
+func (queue *timeoutQueue) dequeue(before time.Time) (MessageId, error) {
 	value := heap.Pop(queue.heap)
 	tuple := value.(queueTuple)
 	if tuple.timeout.After(before) {
 		heap.Push(queue.heap, value)
-		return 0, NextMessageNotReady
+		return MessageId{}, NextMessageNotReady
 	}
 
 	return tuple.location, nil
 }
 
-func (queue *timeoutQueue) DequeueMultiple(location []MessageLocation, before time.Time) (int, error) {
+func (queue *timeoutQueue) DequeueMultiple(location []MessageId, before time.Time) (int, error) {
 	queue.lock.Lock()
 	defer queue.lock.Unlock()
 
