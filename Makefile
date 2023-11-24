@@ -13,4 +13,4 @@ buildApp: buildGRPC
 	go build -o cmd ./cmd
 
 buildImage: buildGRPC
-	docker buildx build -t message-queueing .
+	docker buildx build --load -t message-queueing:latest .
