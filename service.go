@@ -194,8 +194,10 @@ func (queue *globalQueueService) retrieveMessages(ctx context.Context, messages 
 			continue
 		}
 
-		queue.timeoutQueue.Enqueue(now.Add(defaultDelay), locations[i])
-		slice = append(slice, message)
+		if !*message.Acknowledged {
+			queue.timeoutQueue.Enqueue(now.Add(defaultDelay), locations[i])
+			slice = append(slice, message)
+		}
 	}
 
 	return len(slice), err
