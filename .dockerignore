@@ -1,0 +1,7 @@
+data/
+docs/
+.gitignore
+.dockerignore
+Dockerfile
+Makefile
+message-queueing.proto
