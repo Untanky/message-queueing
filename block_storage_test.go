@@ -44,19 +44,21 @@ func (s *sliceReadWriteSeeker) Seek(offset int64, whence int) (int64, error) {
 	return newLoc, nil
 }
 
-func TestPersister_APIContract(t *testing.T) {
-	h := new(sliceReadWriteSeeker)
-	persister := queueing.NewPersister(h)
-
-	testPersisterAPI(t, persister)
+func TestBlockStorage_Contract(t *testing.T) {
+	t.Run(
+		"IOBlockStorage", func(t *testing.T) {
+			h := new(sliceReadWriteSeeker)
+			storage := queueing.NewIOBlockStorage(h)
+			testBlockStorageAPI(t, storage)
+		},
+	)
 }
 
-func testPersisterAPI(t *testing.T, persister queueing.Persister) {
-
+func testBlockStorageAPI(t *testing.T, storage queueing.BlockStorage) {
 	a := []byte("Hello World")
 	b := []byte("Goodbye World")
 
-	locA, err := persister.Write(a)
+	locA, err := storage.Write(a)
 	if err != nil {
 		t.Fatalf("err: expected nil, got %v", err)
 	}
@@ -64,7 +66,7 @@ func testPersisterAPI(t *testing.T, persister queueing.Persister) {
 		t.Fatalf("locA: expected %d, got %d", 0, locA)
 	}
 
-	locB, err := persister.Write(b)
+	locB, err := storage.Write(b)
 	if err != nil {
 		t.Fatalf("err: expected nil, got %v", err)
 	}
@@ -72,7 +74,7 @@ func testPersisterAPI(t *testing.T, persister queueing.Persister) {
 		t.Fatalf("locA: expected %d, got %d", 19, locB)
 	}
 
-	dataA, err := persister.Read(locA)
+	dataA, err := storage.Read(locA)
 	if err != nil {
 		t.Fatalf("err: expected nil, got %v", err)
 	}
@@ -80,7 +82,7 @@ func testPersisterAPI(t *testing.T, persister queueing.Persister) {
 		t.Fatalf("dataA: expected %v, got %v", a, dataA)
 	}
 
-	dataB, err := persister.Read(locB)
+	dataB, err := storage.Read(locB)
 	if err != nil {
 		t.Fatalf("err: expected nil, got %v", err)
 	}

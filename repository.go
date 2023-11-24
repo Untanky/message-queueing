@@ -15,7 +15,7 @@ import (
 type MessageId uuid.UUID
 type MessageLocation uint64
 
-type Persister interface {
+type BlockStorage interface {
 	Write([]byte) (int64, error)
 	Read(location int64) ([]byte, error)
 }
@@ -31,7 +31,7 @@ const defaultDelay = time.Duration(1 * time.Minute)
 type queueMessageRepository struct {
 	lock sync.Locker
 
-	persister    Persister
+	storage      BlockStorage
 	index        Index[MessageId, MessageLocation]
 	timeoutQueue *timeoutQueue
 }
@@ -42,7 +42,7 @@ func SetupQueueMessageRepository(id string) (Repository, error) {
 		return nil, err
 	}
 
-	persister := NewPersister(file)
+	storage := NewIOBlockStorage(file)
 	index := NewNaiveIndex()
 
 	loc := int64(0)
@@ -57,7 +57,7 @@ func SetupQueueMessageRepository(id string) (Repository, error) {
 
 	fmt.Println(index.(*naiveIndex).data)
 
-	repo := NewQueueMessageRepository(persister, index, NewTimeoutQueue())
+	repo := NewQueueMessageRepository(storage, index, NewTimeoutQueue())
 	return repo, nil
 }
 
@@ -84,12 +84,12 @@ func readNextMessage(reader io.Reader) (*QueueMessage, int64, error) {
 }
 
 func NewQueueMessageRepository(
-	persister Persister, index Index[MessageId, MessageLocation], queue *timeoutQueue,
+	storage BlockStorage, index Index[MessageId, MessageLocation], queue *timeoutQueue,
 ) Repository {
 	return &queueMessageRepository{
 		lock: &sync.Mutex{},
 
-		persister:    persister,
+		storage:      storage,
 		index:        index,
 		timeoutQueue: queue,
 	}
@@ -104,7 +104,7 @@ func (q queueMessageRepository) GetByID(id uuid.UUID) (*QueueMessage, error) {
 		return nil, NotFoundError
 	}
 
-	data, err := q.persister.Read(int64(loc))
+	data, err := q.storage.Read(int64(loc))
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (q queueMessageRepository) GetActive(messages []*QueueMessage) (int, error)
 	actual := n
 	j := 0
 	for i := 0; i < n; i++ {
-		data, e := q.persister.Read(int64(locations[i]))
+		data, e := q.storage.Read(int64(locations[i]))
 		if e != nil {
 			actual -= 1
 			err = errors.Join(err, e)
@@ -159,7 +159,7 @@ func (q queueMessageRepository) Create(message *QueueMessage) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	loc, err := q.persister.Write(data)
+	loc, err := q.storage.Write(data)
 	if err != nil {
 		return err
 	}
