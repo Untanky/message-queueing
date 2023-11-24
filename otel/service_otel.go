@@ -58,15 +58,6 @@ func (o *otelPriorityQueue) Enqueue(ctx context.Context, message *queueing.Queue
 	return o.service.Enqueue(ctx, message)
 }
 
-func (o *otelPriorityQueue) Dequeue(ctx context.Context, messages []*queueing.QueueMessage) (int, error) {
-	ctx, span := o.tracer.Start(ctx, "Dequeue")
-	defer span.End()
-
-	n, err := o.service.Dequeue(ctx, messages)
-
-	return n, err
-}
-
 func (o *otelPriorityQueue) Retrieve(ctx context.Context, messages []*queueing.QueueMessage) (int, error) {
 	ctx, span := o.tracer.Start(ctx, "Retrieve")
 	defer span.End()

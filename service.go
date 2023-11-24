@@ -34,7 +34,6 @@ func (m *RawQueueMessage) ToQueueMessage() *QueueMessage {
 
 type Service interface {
 	Enqueue(ctx context.Context, message *QueueMessage) error
-	Dequeue(ctx context.Context, messages []*QueueMessage) (int, error)
 	Retrieve(ctx context.Context, messages []*QueueMessage) (int, error)
 	Acknowledge(ctx context.Context, messageID uuid.UUID) error
 }
@@ -76,23 +75,6 @@ func (queue *walQueueService) Enqueue(ctx context.Context, message *QueueMessage
 	}
 
 	return queue.service.Enqueue(ctx, message)
-}
-
-func (queue *walQueueService) Dequeue(ctx context.Context, messages []*QueueMessage) (int, error) {
-	n, err := queue.service.Dequeue(ctx, messages)
-
-	walErr := json.NewEncoder(queue.log).Encode(
-		walEvent{
-			EventType: "dequeue",
-			Data:      messages,
-		},
-	)
-
-	if walErr != nil {
-		return 0, errors.Join(WalError, FatalDequeueMitigationError)
-	}
-
-	return n, err
 }
 
 func (queue *walQueueService) Retrieve(ctx context.Context, messages []*QueueMessage) (int, error) {
@@ -147,23 +129,6 @@ func (queue *globalQueueService) Enqueue(ctx context.Context, message *QueueMess
 	queue.timeoutQueue.Enqueue(time.Now(), MessageId(uuid.Must(uuid.FromBytes(message.MessageID))))
 
 	return nil
-}
-
-func (queue *globalQueueService) Dequeue(ctx context.Context, messages []*QueueMessage) (int, error) {
-	locations := make([]MessageId, len(messages))
-	messages = messages[:0]
-	n, err := queue.timeoutQueue.DequeueMultiple(locations, time.Now())
-	for i := 0; i < n; i++ {
-		message, e := queue.repo.GetByID(uuid.UUID(locations[i]))
-		if e != nil {
-			err = errors.Join(err, e)
-			continue
-		}
-
-		messages = append(messages, message)
-	}
-
-	return len(messages), err
 }
 
 func (queue *globalQueueService) Retrieve(ctx context.Context, messages []*QueueMessage) (int, error) {
