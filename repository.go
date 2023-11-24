@@ -115,7 +115,7 @@ func (q queueMessageRepository) GetByID(id uuid.UUID) (*QueueMessage, error) {
 	return &queueMessage, nil
 }
 
-func (q queueMessageRepository) GetActive(messages []*QueueMessage) (int, error) {
+func (q queueMessageRepository) GetAvailable(messages []*QueueMessage) (int, error) {
 	panic("not implemented")
 }
 

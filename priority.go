@@ -18,12 +18,13 @@ var (
 type Queue[Value any] interface {
 	Enqueue(ctx context.Context, messages ...Value) error
 	Dequeue(ctx context.Context, messages []Value) (int, error)
+	Retrieve(ctx context.Context, messages []Value) (int, error)
 	Acknowledge(ctx context.Context, messageID uuid.UUID) error
 }
 
 type Repository interface {
 	GetByID(id uuid.UUID) (*QueueMessage, error)
-	GetActive(messages []*QueueMessage) (int, error)
+	GetAvailable(messages []*QueueMessage) (int, error)
 	Create(message *QueueMessage) error
 	Update(message *QueueMessage) error
 	Delete(message *QueueMessage) error
@@ -82,6 +83,27 @@ func (queue *walQueueService) Dequeue(ctx context.Context, messages []*QueueMess
 	return n, err
 }
 
+func (queue *walQueueService) Retrieve(ctx context.Context, messages []*QueueMessage) (int, error) {
+	n, err := queue.service.Retrieve(ctx, messages)
+
+	walErr := json.NewEncoder(queue.log).Encode(
+		walEvent{
+			EventType: "retrieve",
+			Data:      messages,
+		},
+	)
+
+	if walErr != nil {
+		enqErr := queue.service.Enqueue(ctx, messages...)
+		if enqErr != nil {
+			return 0, errors.Join(walErr, enqErr, WalError, FatalDequeueMitigationError)
+		}
+		return 0, errors.Join(WalError, FatalDequeueMitigationError)
+	}
+
+	return n, err
+}
+
 func (queue *walQueueService) Acknowledge(ctx context.Context, messageID uuid.UUID) error {
 	//TODO implement me
 	panic("implement me")
@@ -125,6 +147,27 @@ func (queue *globalQueueService) Dequeue(ctx context.Context, messages []*QueueM
 			continue
 		}
 
+		messages = append(messages, message)
+	}
+
+	return len(messages), err
+}
+
+func (queue *globalQueueService) Retrieve(ctx context.Context, messages []*QueueMessage) (int, error) {
+	locations := make([]MessageId, len(messages))
+	messages = messages[:0]
+
+	now := time.Now()
+	n, err := queue.timeoutQueue.DequeueMultiple(locations, now)
+
+	for i := 0; i < n; i++ {
+		message, e := queue.repo.GetByID(uuid.UUID(locations[i]))
+		if e != nil {
+			err = errors.Join(err, e)
+			continue
+		}
+
+		queue.timeoutQueue.Enqueue(now.Add(defaultDelay), locations[i])
 		messages = append(messages, message)
 	}
 

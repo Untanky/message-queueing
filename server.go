@@ -62,7 +62,7 @@ func (m *MessageQueueingServer) RetrieveMessages(
 	ctx context.Context, request *RetrieveMessagesRequest,
 ) (*RetrieveMessagesResponse, error) {
 	var messages = make([]*QueueMessage, *request.Count)
-	n, err := m.queueService.Dequeue(ctx, messages)
+	n, err := m.queueService.Retrieve(ctx, messages)
 	if err != nil && !errors.Is(err, NextMessageNotReady) {
 		return nil, err
 	}

@@ -28,6 +28,8 @@ message QueueMessage {
   required bytes dataHash = 4;
   // attributes associated with the message
   map<string, string> attributes = 5;
+  // lastRetrieved
+  optional int64 lastRetrieved = 6;
 }
 
 message SubmitReceipt {
