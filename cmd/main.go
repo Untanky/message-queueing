@@ -22,9 +22,10 @@ import (
 var port = flag.Int("port", 8080, "the port of the application")
 
 func main() {
+	flag.Parse()
+
 	setupOTel()
 
-	flag.Parse()
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
 
 	if err != nil {
@@ -50,7 +51,7 @@ func main() {
 
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
-	queueing.RegisterQueueServiceServer(grpcServer, queueing.NewMessageQueueingServer(service))
+	queueing.RegisterQueueServiceServer(grpcServer, NewMessageQueueingServer(service))
 	grpcServer.Serve(lis)
 }
 

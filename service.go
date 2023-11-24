@@ -2,6 +2,7 @@ package queueing
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"github.com/google/uuid"
@@ -13,6 +14,21 @@ var (
 	WalError                    = errors.New("error writing to write ahead log")
 	FatalDequeueMitigationError = errors.New("fatal error! writing to write ahead log failed AND could not enqueue messages again! potential data loss")
 )
+
+func (m *RawQueueMessage) ToQueueMessage() *QueueMessage {
+	messageID := uuid.New()
+	now := time.Now().Unix()
+	hash := sha256.New()
+	hash.Write(m.Data)
+
+	return &QueueMessage{
+		MessageID:  messageID[:],
+		Timestamp:  &now,
+		Attributes: m.Attributes,
+		Data:       m.Data,
+		DataHash:   hash.Sum(nil),
+	}
+}
 
 type Service interface {
 	Enqueue(ctx context.Context, message *QueueMessage) error
@@ -144,7 +160,7 @@ func (queue *globalQueueService) Retrieve(ctx context.Context, messages []*Queue
 	count := 0
 	var err error
 
-	for count < desired && err != nil {
+	for count < desired && err == nil {
 		additional, e := queue.retrieveMessages(ctx, messages[count:])
 		count += additional
 		err = errors.Join(err, e)

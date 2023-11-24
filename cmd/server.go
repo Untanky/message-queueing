@@ -1,34 +1,33 @@
-package queueing
+package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"time"
+	queueing "message-queueing"
 )
 
 type WriteAheadLog interface {
-	Write(ctx context.Context, message *QueueMessage) error
+	Write(ctx context.Context, message *queueing.QueueMessage) error
 }
 
 type MessageQueueingServer struct {
-	UnimplementedQueueServiceServer
+	queueing.UnimplementedQueueServiceServer
 
-	queueService Service
+	queueService queueing.Service
 }
 
-func NewMessageQueueingServer(service Service) QueueServiceServer {
+func NewMessageQueueingServer(service queueing.Service) queueing.QueueServiceServer {
 	return &MessageQueueingServer{
 		queueService: service,
 	}
 }
 
 func (m *MessageQueueingServer) SubmitMessages(
-	ctx context.Context, request *SubmitMessagesRequest,
-) (*SubmitMessagesResponse, error) {
-	receipts := make([]*SubmitReceipt, 0, len(request.Messages))
+	ctx context.Context, request *queueing.SubmitMessagesRequest,
+) (*queueing.SubmitMessagesResponse, error) {
+	receipts := make([]*queueing.SubmitReceipt, 0, len(request.Messages))
 	var joinErr error
 
 	for _, rawQueueMessage := range request.Messages {
@@ -45,7 +44,7 @@ func (m *MessageQueueingServer) SubmitMessages(
 		}
 
 		receipts = append(
-			receipts, &SubmitReceipt{
+			receipts, &queueing.SubmitReceipt{
 				MessageID: &messageID,
 				Ok:        &ok,
 				Reason:    &reason,
@@ -59,47 +58,32 @@ func (m *MessageQueueingServer) SubmitMessages(
 		joinErr = fmt.Errorf("there were some errors: %w", joinErr)
 	}
 
-	return &SubmitMessagesResponse{
+	return &queueing.SubmitMessagesResponse{
 		Receipts: receipts,
 	}, joinErr
 }
 
-func (m *RawQueueMessage) ToQueueMessage() *QueueMessage {
-	messageID := uuid.New()
-	now := time.Now().Unix()
-	hash := sha256.New()
-	hash.Write(m.Data)
-
-	return &QueueMessage{
-		MessageID:  messageID[:],
-		Timestamp:  &now,
-		Attributes: m.Attributes,
-		Data:       m.Data,
-		DataHash:   hash.Sum(nil),
-	}
-}
-
 func (m *MessageQueueingServer) RetrieveMessages(
-	ctx context.Context, request *RetrieveMessagesRequest,
-) (*RetrieveMessagesResponse, error) {
-	var messages = make([]*QueueMessage, *request.Count)
+	ctx context.Context, request *queueing.RetrieveMessagesRequest,
+) (*queueing.RetrieveMessagesResponse, error) {
+	var messages = make([]*queueing.QueueMessage, *request.Count)
 	n, err := m.queueService.Retrieve(ctx, messages)
-	if err != nil && !errors.Is(err, NextMessageNotReady) {
+	if err != nil && !errors.Is(err, queueing.NextMessageNotReady) {
 		return nil, err
 	}
 
 	n32 := int32(n)
 
-	return &RetrieveMessagesResponse{
+	return &queueing.RetrieveMessagesResponse{
 		Count:    &n32,
 		Messages: messages[:n],
 	}, nil
 }
 
 func (m *MessageQueueingServer) AcknowledgeMessages(
-	ctx context.Context, request *AcknowledgeMessagesRequest,
-) (*AcknowledgeMessagesResponse, error) {
-	receipts := make([]*AcknowledgeReceipt, 0, len(request.MessageIDs))
+	ctx context.Context, request *queueing.AcknowledgeMessagesRequest,
+) (*queueing.AcknowledgeMessagesResponse, error) {
+	receipts := make([]*queueing.AcknowledgeReceipt, 0, len(request.MessageIDs))
 
 	for _, idString := range request.MessageIDs {
 		id := uuid.MustParse(idString)
@@ -113,7 +97,7 @@ func (m *MessageQueueingServer) AcknowledgeMessages(
 		}
 
 		receipts = append(
-			receipts, &AcknowledgeReceipt{
+			receipts, &queueing.AcknowledgeReceipt{
 				MessageID: &idString,
 				Ok:        &ok,
 				Reason:    &reason,
@@ -121,7 +105,7 @@ func (m *MessageQueueingServer) AcknowledgeMessages(
 		)
 	}
 
-	return &AcknowledgeMessagesResponse{
+	return &queueing.AcknowledgeMessagesResponse{
 		Receipts: receipts,
 	}, nil
 }
