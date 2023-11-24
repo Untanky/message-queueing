@@ -16,6 +16,7 @@ type MessageLocation uint64
 
 type BlockStorage interface {
 	Write([]byte) (int64, error)
+	Overwrite(location int64, data []byte) error
 	Read(location int64) ([]byte, error)
 }
 
@@ -115,10 +116,6 @@ func (q queueMessageRepository) GetByID(id uuid.UUID) (*QueueMessage, error) {
 	return &queueMessage, nil
 }
 
-func (q queueMessageRepository) GetAvailable(messages []*QueueMessage) (int, error) {
-	panic("not implemented")
-}
-
 func (q queueMessageRepository) Create(message *QueueMessage) error {
 	id, err := uuid.FromBytes(message.MessageID)
 	if err != nil {
@@ -147,8 +144,17 @@ func (q queueMessageRepository) Update(message *QueueMessage) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	//TODO implement me
-	panic("implement me")
+	loc, ok := q.index.Get(MessageId(message.MessageID))
+	if !ok {
+		return NotFoundError
+	}
+
+	data, err := proto.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	return q.storage.Overwrite(int64(loc), data)
 }
 
 func (q queueMessageRepository) Delete(message *QueueMessage) error {

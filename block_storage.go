@@ -2,6 +2,8 @@ package queueing
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
 	"sync"
 )
@@ -41,6 +43,37 @@ func (storage *ioBlockStorage) Write(data []byte) (int64, error) {
 	}
 
 	return off, nil
+}
+
+func (storage *ioBlockStorage) Overwrite(location int64, data []byte) error {
+	l := len(data)
+
+	storage.lock.Lock()
+	defer storage.lock.Unlock()
+
+	_, err := storage.handler.Seek(location, io.SeekStart)
+	if err != nil {
+		return err
+	}
+
+	var readLength int64
+	err = binary.Read(storage.handler, binary.BigEndian, &readLength)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(data)
+
+	if int64(l) != readLength {
+		return errors.New("length mismatch; unable to overwrite")
+	}
+
+	_, err = storage.handler.Write(data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (storage *ioBlockStorage) Read(location int64) ([]byte, error) {

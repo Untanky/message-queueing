@@ -20,13 +20,15 @@ func (m *RawQueueMessage) ToQueueMessage() *QueueMessage {
 	now := time.Now().Unix()
 	hash := sha256.New()
 	hash.Write(m.Data)
+	f := false
 
 	return &QueueMessage{
-		MessageID:  messageID[:],
-		Timestamp:  &now,
-		Attributes: m.Attributes,
-		Data:       m.Data,
-		DataHash:   hash.Sum(nil),
+		MessageID:    messageID[:],
+		Timestamp:    &now,
+		Attributes:   m.Attributes,
+		Data:         m.Data,
+		DataHash:     hash.Sum(nil),
+		Acknowledged: &f,
 	}
 }
 
@@ -111,8 +113,17 @@ func (queue *walQueueService) Retrieve(ctx context.Context, messages []*QueueMes
 }
 
 func (queue *walQueueService) Acknowledge(ctx context.Context, messageID uuid.UUID) error {
-	//TODO implement me
-	panic("implement me")
+	err := json.NewEncoder(queue.log).Encode(
+		walEvent{
+			EventType: "enqueue",
+			Data:      messageID,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return queue.service.Acknowledge(ctx, messageID)
 }
 
 type globalQueueService struct {
@@ -191,6 +202,14 @@ func (queue *globalQueueService) retrieveMessages(ctx context.Context, messages 
 }
 
 func (queue *globalQueueService) Acknowledge(ctx context.Context, messageID uuid.UUID) error {
-	//TODO implement me
-	panic("implement me")
+	message, err := queue.repo.GetByID(messageID)
+	if err != nil {
+		return err
+	}
+
+	t := true
+
+	message.Acknowledged = &t
+
+	return queue.repo.Update(message)
 }

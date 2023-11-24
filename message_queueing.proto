@@ -30,6 +30,8 @@ message QueueMessage {
   map<string, string> attributes = 5;
   // lastRetrieved
   optional int64 lastRetrieved = 6;
+
+  required bool acknowledged = 7;
 }
 
 message SubmitReceipt {
