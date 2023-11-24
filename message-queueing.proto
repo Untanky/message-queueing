@@ -33,9 +33,8 @@ message QueueMessage {
 message SubmitReceipt {
   required bool ok = 1;
   required string messageID = 2;
-  optional string reason = 3;
-  optional int64 timestamp = 4;
-  optional bytes dataHash = 5;
+  optional int64 timestamp = 3;
+  optional bytes dataHash = 4;
 }
 
 message SubmitMessagesRequest {
