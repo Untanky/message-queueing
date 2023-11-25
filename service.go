@@ -39,10 +39,10 @@ type Service interface {
 }
 
 type Repository interface {
-	GetByID(id uuid.UUID) (*QueueMessage, error)
-	Create(message *QueueMessage) error
-	Update(message *QueueMessage) error
-	Delete(message *QueueMessage) error
+	GetByID(ctx context.Context, id uuid.UUID) (*QueueMessage, error)
+	Create(ctx context.Context, message *QueueMessage) error
+	Update(ctx context.Context, message *QueueMessage) error
+	Delete(ctx context.Context, message *QueueMessage) error
 }
 
 type walEvent struct {
@@ -121,7 +121,7 @@ func NewQueueService(repo Repository, timeoutQueue *timeoutQueue) Service {
 }
 
 func (queue *globalQueueService) Enqueue(ctx context.Context, message *QueueMessage) error {
-	err := queue.repo.Create(message)
+	err := queue.repo.Create(ctx, message)
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func (queue *globalQueueService) retrieveMessages(ctx context.Context, messages 
 	n, err := queue.timeoutQueue.DequeueMultiple(locations, now)
 
 	for i := 0; i < n; i++ {
-		message, e := queue.repo.GetByID(uuid.UUID(locations[i]))
+		message, e := queue.repo.GetByID(ctx, uuid.UUID(locations[i]))
 		if e != nil {
 			err = errors.Join(err, e)
 			continue
@@ -169,7 +169,7 @@ func (queue *globalQueueService) retrieveMessages(ctx context.Context, messages 
 }
 
 func (queue *globalQueueService) Acknowledge(ctx context.Context, messageID uuid.UUID) error {
-	message, err := queue.repo.GetByID(messageID)
+	message, err := queue.repo.GetByID(ctx, messageID)
 	if err != nil {
 		return err
 	}
@@ -178,5 +178,5 @@ func (queue *globalQueueService) Acknowledge(ctx context.Context, messageID uuid
 
 	message.Acknowledged = &t
 
-	return queue.repo.Update(message)
+	return queue.repo.Update(ctx, message)
 }

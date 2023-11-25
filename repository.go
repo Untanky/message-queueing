@@ -1,6 +1,7 @@
 package queueing
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"github.com/google/uuid"
@@ -93,7 +94,7 @@ func NewQueueMessageRepository(
 	}
 }
 
-func (q queueMessageRepository) GetByID(id uuid.UUID) (*QueueMessage, error) {
+func (q queueMessageRepository) GetByID(ctx context.Context, id uuid.UUID) (*QueueMessage, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
@@ -116,7 +117,7 @@ func (q queueMessageRepository) GetByID(id uuid.UUID) (*QueueMessage, error) {
 	return &queueMessage, nil
 }
 
-func (q queueMessageRepository) Create(message *QueueMessage) error {
+func (q queueMessageRepository) Create(ctx context.Context, message *QueueMessage) error {
 	id, err := uuid.FromBytes(message.MessageID)
 	if err != nil {
 		return err
@@ -140,7 +141,7 @@ func (q queueMessageRepository) Create(message *QueueMessage) error {
 	return nil
 }
 
-func (q queueMessageRepository) Update(message *QueueMessage) error {
+func (q queueMessageRepository) Update(ctx context.Context, message *QueueMessage) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
@@ -157,7 +158,7 @@ func (q queueMessageRepository) Update(message *QueueMessage) error {
 	return q.storage.Overwrite(int64(loc), data)
 }
 
-func (q queueMessageRepository) Delete(message *QueueMessage) error {
+func (q queueMessageRepository) Delete(ctx context.Context, message *QueueMessage) error {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 

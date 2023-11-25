@@ -9,6 +9,8 @@ import (
 	queueing "message-queueing"
 )
 
+var tracer = otel.Tracer("message-queueing")
+
 type otelPriorityQueue struct {
 	messagesWritten      metric.Int64Counter
 	messagesRetrieved    metric.Int64Counter

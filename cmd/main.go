@@ -42,6 +42,8 @@ func main() {
 		panic(err)
 	}
 
+	repo = otel.WrapRepository(repo)
+
 	service := queueing.NewQueueService(repo, queueing.NewTimeoutQueue())
 	service = queueing.NewWriteAheadLogQueueService(walFile, service)
 	service, err = otel.WrapOTelPriorityQueue(service)
@@ -67,7 +69,7 @@ func setupOTel() {
 		resource.Default(),
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
-			semconv.ServiceName("ExampleService"),
+			semconv.ServiceName("message-queueing"),
 		),
 	)
 
