@@ -22,6 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type QueueServiceClient interface {
+	WriteMessages(ctx context.Context, opts ...grpc.CallOption) (QueueService_WriteMessagesClient, error)
 	SubmitMessages(ctx context.Context, in *SubmitMessagesRequest, opts ...grpc.CallOption) (*SubmitMessagesResponse, error)
 	RetrieveMessages(ctx context.Context, in *RetrieveMessagesRequest, opts ...grpc.CallOption) (*RetrieveMessagesResponse, error)
 	AcknowledgeMessages(ctx context.Context, in *AcknowledgeMessagesRequest, opts ...grpc.CallOption) (*AcknowledgeMessagesResponse, error)
@@ -33,6 +34,37 @@ type queueServiceClient struct {
 
 func NewQueueServiceClient(cc grpc.ClientConnInterface) QueueServiceClient {
 	return &queueServiceClient{cc}
+}
+
+func (c *queueServiceClient) WriteMessages(ctx context.Context, opts ...grpc.CallOption) (QueueService_WriteMessagesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &QueueService_ServiceDesc.Streams[0], "/message_queueing.QueueService/WriteMessages", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &queueServiceWriteMessagesClient{stream}
+	return x, nil
+}
+
+type QueueService_WriteMessagesClient interface {
+	Send(*RawQueueMessage) error
+	Recv() (*SubmitReceipt, error)
+	grpc.ClientStream
+}
+
+type queueServiceWriteMessagesClient struct {
+	grpc.ClientStream
+}
+
+func (x *queueServiceWriteMessagesClient) Send(m *RawQueueMessage) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *queueServiceWriteMessagesClient) Recv() (*SubmitReceipt, error) {
+	m := new(SubmitReceipt)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *queueServiceClient) SubmitMessages(ctx context.Context, in *SubmitMessagesRequest, opts ...grpc.CallOption) (*SubmitMessagesResponse, error) {
@@ -66,6 +98,7 @@ func (c *queueServiceClient) AcknowledgeMessages(ctx context.Context, in *Acknow
 // All implementations must embed UnimplementedQueueServiceServer
 // for forward compatibility
 type QueueServiceServer interface {
+	WriteMessages(QueueService_WriteMessagesServer) error
 	SubmitMessages(context.Context, *SubmitMessagesRequest) (*SubmitMessagesResponse, error)
 	RetrieveMessages(context.Context, *RetrieveMessagesRequest) (*RetrieveMessagesResponse, error)
 	AcknowledgeMessages(context.Context, *AcknowledgeMessagesRequest) (*AcknowledgeMessagesResponse, error)
@@ -76,6 +109,9 @@ type QueueServiceServer interface {
 type UnimplementedQueueServiceServer struct {
 }
 
+func (UnimplementedQueueServiceServer) WriteMessages(QueueService_WriteMessagesServer) error {
+	return status.Errorf(codes.Unimplemented, "method WriteMessages not implemented")
+}
 func (UnimplementedQueueServiceServer) SubmitMessages(context.Context, *SubmitMessagesRequest) (*SubmitMessagesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitMessages not implemented")
 }
@@ -96,6 +132,32 @@ type UnsafeQueueServiceServer interface {
 
 func RegisterQueueServiceServer(s grpc.ServiceRegistrar, srv QueueServiceServer) {
 	s.RegisterService(&QueueService_ServiceDesc, srv)
+}
+
+func _QueueService_WriteMessages_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(QueueServiceServer).WriteMessages(&queueServiceWriteMessagesServer{stream})
+}
+
+type QueueService_WriteMessagesServer interface {
+	Send(*SubmitReceipt) error
+	Recv() (*RawQueueMessage, error)
+	grpc.ServerStream
+}
+
+type queueServiceWriteMessagesServer struct {
+	grpc.ServerStream
+}
+
+func (x *queueServiceWriteMessagesServer) Send(m *SubmitReceipt) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *queueServiceWriteMessagesServer) Recv() (*RawQueueMessage, error) {
+	m := new(RawQueueMessage)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _QueueService_SubmitMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -172,6 +234,13 @@ var QueueService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _QueueService_AcknowledgeMessages_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "WriteMessages",
+			Handler:       _QueueService_WriteMessages_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "message_queueing.proto",
 }

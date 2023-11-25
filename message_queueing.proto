@@ -76,6 +76,7 @@ message AcknowledgeMessagesResponse {
 
 //
 service QueueService {
+  rpc WriteMessages(stream RawQueueMessage) returns (stream SubmitReceipt);
   rpc SubmitMessages(SubmitMessagesRequest) returns (SubmitMessagesResponse);
   rpc RetrieveMessages(RetrieveMessagesRequest) returns (RetrieveMessagesResponse);
   rpc AcknowledgeMessages(AcknowledgeMessagesRequest) returns (AcknowledgeMessagesResponse);

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"io"
 	queueing "message-queueing"
 )
 
@@ -21,6 +22,44 @@ type MessageQueueingServer struct {
 func NewMessageQueueingServer(service queueing.Service) queueing.QueueServiceServer {
 	return &MessageQueueingServer{
 		queueService: service,
+	}
+}
+
+func (m *MessageQueueingServer) WriteMessages(stream queueing.QueueService_WriteMessagesServer) error {
+	for {
+		rawQueueMessage, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		message := rawQueueMessage.ToQueueMessage()
+		err = m.queueService.Enqueue(stream.Context(), message)
+		if err != nil {
+			return err
+		}
+
+		messageID := uuid.UUID(message.MessageID).String()
+		var ok = err == nil
+		var reason string
+		if !ok {
+			reason = err.Error()
+		}
+
+		err = stream.Send(
+			&queueing.SubmitReceipt{
+				MessageID: &messageID,
+				Ok:        &ok,
+				Reason:    &reason,
+				Timestamp: message.Timestamp,
+				DataHash:  message.DataHash,
+			},
+		)
+		if err != nil {
+			return err
+		}
 	}
 }
 
