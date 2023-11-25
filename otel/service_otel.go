@@ -21,7 +21,7 @@ type otelPriorityQueue struct {
 	service queueing.Service
 }
 
-func WrapOTelPriorityQueue(service queueing.Service) (
+func WrapService(service queueing.Service) (
 	queueing.Service, error,
 ) {
 	messagesWritten, err := meter.Int64Counter("messagesWritten")

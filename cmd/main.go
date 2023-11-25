@@ -46,7 +46,7 @@ func main() {
 
 	service := queueing.NewQueueService(repo, queueing.NewTimeoutQueue())
 	service = queueing.NewWriteAheadLogQueueService(walFile, service)
-	service, err = otel.WrapOTelPriorityQueue(service)
+	service, err = otel.WrapService(service)
 	if err != nil {
 		panic(err)
 	}
