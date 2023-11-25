@@ -51,9 +51,14 @@ func main() {
 		panic(err)
 	}
 
+	server, err := otel.WrapQueueServiceServer(NewMessageQueueingServer(service))
+	if err != nil {
+		panic(err)
+	}
+
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
-	queueing.RegisterQueueServiceServer(grpcServer, NewMessageQueueingServer(service))
+	queueing.RegisterQueueServiceServer(grpcServer, server)
 	grpcServer.Serve(lis)
 }
 
