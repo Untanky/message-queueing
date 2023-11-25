@@ -55,7 +55,13 @@ func (o *otelPriorityQueue) Enqueue(ctx context.Context, message *queueing.Queue
 
 	o.messagesWritten.Add(ctx, 1)
 
-	return o.service.Enqueue(ctx, message)
+	err := o.service.Enqueue(ctx, message)
+
+	if err != nil {
+		span.RecordError(err)
+	}
+
+	return err
 }
 
 func (o *otelPriorityQueue) Retrieve(ctx context.Context, messages []*queueing.QueueMessage) (int, error) {
@@ -65,6 +71,9 @@ func (o *otelPriorityQueue) Retrieve(ctx context.Context, messages []*queueing.Q
 	n, err := o.service.Retrieve(ctx, messages)
 
 	o.messagesRetrieved.Add(ctx, int64(n))
+	if err != nil {
+		span.RecordError(err)
+	}
 
 	return n, err
 }
@@ -76,6 +85,9 @@ func (o *otelPriorityQueue) Acknowledge(ctx context.Context, messageID uuid.UUID
 	err := o.service.Acknowledge(ctx, messageID)
 
 	o.messagesAcknowledged.Add(ctx, 1)
+	if err != nil {
+		span.RecordError(err)
+	}
 
 	return err
 }
