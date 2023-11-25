@@ -5,17 +5,18 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/trace"
 	queueing "message-queueing"
 )
 
-var tracer = otel.Tracer("message-queueing")
+var (
+	tracer = otel.Tracer("message-queueing")
+	meter  = otel.Meter("message-queueing")
+)
 
 type otelPriorityQueue struct {
 	messagesWritten      metric.Int64Counter
 	messagesRetrieved    metric.Int64Counter
 	messagesAcknowledged metric.Int64Counter
-	tracer               trace.Tracer
 
 	service queueing.Service
 }
@@ -23,8 +24,6 @@ type otelPriorityQueue struct {
 func WrapOTelPriorityQueue(service queueing.Service) (
 	queueing.Service, error,
 ) {
-	meter := otel.Meter("message-queueing")
-
 	messagesWritten, err := meter.Int64Counter("messagesWritten")
 	if err != nil {
 		return nil, err
@@ -46,13 +45,11 @@ func WrapOTelPriorityQueue(service queueing.Service) (
 		messagesWritten:      messagesWritten,
 		messagesRetrieved:    messagesRetrieved,
 		messagesAcknowledged: messagesAcknowledged,
-
-		tracer: otel.Tracer("message-queueing"),
 	}, nil
 }
 
 func (o *otelPriorityQueue) Enqueue(ctx context.Context, message *queueing.QueueMessage) error {
-	ctx, span := o.tracer.Start(ctx, "Enqueue")
+	ctx, span := tracer.Start(ctx, "Enqueue")
 	defer span.End()
 
 	o.messagesWritten.Add(ctx, 1)
@@ -67,7 +64,7 @@ func (o *otelPriorityQueue) Enqueue(ctx context.Context, message *queueing.Queue
 }
 
 func (o *otelPriorityQueue) Retrieve(ctx context.Context, messages []*queueing.QueueMessage) (int, error) {
-	ctx, span := o.tracer.Start(ctx, "Retrieve")
+	ctx, span := tracer.Start(ctx, "Retrieve")
 	defer span.End()
 
 	n, err := o.service.Retrieve(ctx, messages)
@@ -81,7 +78,7 @@ func (o *otelPriorityQueue) Retrieve(ctx context.Context, messages []*queueing.Q
 }
 
 func (o *otelPriorityQueue) Acknowledge(ctx context.Context, messageID uuid.UUID) error {
-	ctx, span := o.tracer.Start(ctx, "Acknowledge")
+	ctx, span := tracer.Start(ctx, "Acknowledge")
 	defer span.End()
 
 	err := o.service.Acknowledge(ctx, messageID)
