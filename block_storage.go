@@ -3,7 +3,6 @@ package queueing
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 )
@@ -61,8 +60,6 @@ func (storage *ioBlockStorage) Overwrite(location int64, data []byte) error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Println(data)
 
 	if int64(l) != readLength {
 		return errors.New("length mismatch; unable to overwrite")
