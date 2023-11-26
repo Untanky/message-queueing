@@ -74,10 +74,14 @@ message AcknowledgeMessagesResponse {
   repeated AcknowledgeReceipt receipts = 1;
 }
 
+message WatchMessageRequest {}
+
+message WatchMessageResponse {}
+
 //
 service QueueService {
   rpc WriteMessages(stream RawQueueMessage) returns (stream SubmitReceipt);
-  rpc SubmitMessages(SubmitMessagesRequest) returns (SubmitMessagesResponse);
-  rpc RetrieveMessages(RetrieveMessagesRequest) returns (RetrieveMessagesResponse);
-  rpc AcknowledgeMessages(AcknowledgeMessagesRequest) returns (AcknowledgeMessagesResponse);
+  rpc SubmitMessageBatch(SubmitMessagesRequest) returns (SubmitMessagesResponse);
+  rpc RetrieveMessageBatch(RetrieveMessagesRequest) returns (RetrieveMessagesResponse);
+  rpc AcknowledgeMessageBatch(AcknowledgeMessagesRequest) returns (AcknowledgeMessagesResponse);
 }

@@ -23,9 +23,9 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type QueueServiceClient interface {
 	WriteMessages(ctx context.Context, opts ...grpc.CallOption) (QueueService_WriteMessagesClient, error)
-	SubmitMessages(ctx context.Context, in *SubmitMessagesRequest, opts ...grpc.CallOption) (*SubmitMessagesResponse, error)
-	RetrieveMessages(ctx context.Context, in *RetrieveMessagesRequest, opts ...grpc.CallOption) (*RetrieveMessagesResponse, error)
-	AcknowledgeMessages(ctx context.Context, in *AcknowledgeMessagesRequest, opts ...grpc.CallOption) (*AcknowledgeMessagesResponse, error)
+	SubmitMessageBatch(ctx context.Context, in *SubmitMessagesRequest, opts ...grpc.CallOption) (*SubmitMessagesResponse, error)
+	RetrieveMessageBatch(ctx context.Context, in *RetrieveMessagesRequest, opts ...grpc.CallOption) (*RetrieveMessagesResponse, error)
+	AcknowledgeMessageBatch(ctx context.Context, in *AcknowledgeMessagesRequest, opts ...grpc.CallOption) (*AcknowledgeMessagesResponse, error)
 }
 
 type queueServiceClient struct {
@@ -67,27 +67,27 @@ func (x *queueServiceWriteMessagesClient) Recv() (*SubmitReceipt, error) {
 	return m, nil
 }
 
-func (c *queueServiceClient) SubmitMessages(ctx context.Context, in *SubmitMessagesRequest, opts ...grpc.CallOption) (*SubmitMessagesResponse, error) {
+func (c *queueServiceClient) SubmitMessageBatch(ctx context.Context, in *SubmitMessagesRequest, opts ...grpc.CallOption) (*SubmitMessagesResponse, error) {
 	out := new(SubmitMessagesResponse)
-	err := c.cc.Invoke(ctx, "/message_queueing.QueueService/SubmitMessages", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/message_queueing.QueueService/SubmitMessageBatch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *queueServiceClient) RetrieveMessages(ctx context.Context, in *RetrieveMessagesRequest, opts ...grpc.CallOption) (*RetrieveMessagesResponse, error) {
+func (c *queueServiceClient) RetrieveMessageBatch(ctx context.Context, in *RetrieveMessagesRequest, opts ...grpc.CallOption) (*RetrieveMessagesResponse, error) {
 	out := new(RetrieveMessagesResponse)
-	err := c.cc.Invoke(ctx, "/message_queueing.QueueService/RetrieveMessages", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/message_queueing.QueueService/RetrieveMessageBatch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *queueServiceClient) AcknowledgeMessages(ctx context.Context, in *AcknowledgeMessagesRequest, opts ...grpc.CallOption) (*AcknowledgeMessagesResponse, error) {
+func (c *queueServiceClient) AcknowledgeMessageBatch(ctx context.Context, in *AcknowledgeMessagesRequest, opts ...grpc.CallOption) (*AcknowledgeMessagesResponse, error) {
 	out := new(AcknowledgeMessagesResponse)
-	err := c.cc.Invoke(ctx, "/message_queueing.QueueService/AcknowledgeMessages", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/message_queueing.QueueService/AcknowledgeMessageBatch", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +99,9 @@ func (c *queueServiceClient) AcknowledgeMessages(ctx context.Context, in *Acknow
 // for forward compatibility
 type QueueServiceServer interface {
 	WriteMessages(QueueService_WriteMessagesServer) error
-	SubmitMessages(context.Context, *SubmitMessagesRequest) (*SubmitMessagesResponse, error)
-	RetrieveMessages(context.Context, *RetrieveMessagesRequest) (*RetrieveMessagesResponse, error)
-	AcknowledgeMessages(context.Context, *AcknowledgeMessagesRequest) (*AcknowledgeMessagesResponse, error)
+	SubmitMessageBatch(context.Context, *SubmitMessagesRequest) (*SubmitMessagesResponse, error)
+	RetrieveMessageBatch(context.Context, *RetrieveMessagesRequest) (*RetrieveMessagesResponse, error)
+	AcknowledgeMessageBatch(context.Context, *AcknowledgeMessagesRequest) (*AcknowledgeMessagesResponse, error)
 	mustEmbedUnimplementedQueueServiceServer()
 }
 
@@ -112,14 +112,14 @@ type UnimplementedQueueServiceServer struct {
 func (UnimplementedQueueServiceServer) WriteMessages(QueueService_WriteMessagesServer) error {
 	return status.Errorf(codes.Unimplemented, "method WriteMessages not implemented")
 }
-func (UnimplementedQueueServiceServer) SubmitMessages(context.Context, *SubmitMessagesRequest) (*SubmitMessagesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SubmitMessages not implemented")
+func (UnimplementedQueueServiceServer) SubmitMessageBatch(context.Context, *SubmitMessagesRequest) (*SubmitMessagesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitMessageBatch not implemented")
 }
-func (UnimplementedQueueServiceServer) RetrieveMessages(context.Context, *RetrieveMessagesRequest) (*RetrieveMessagesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RetrieveMessages not implemented")
+func (UnimplementedQueueServiceServer) RetrieveMessageBatch(context.Context, *RetrieveMessagesRequest) (*RetrieveMessagesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RetrieveMessageBatch not implemented")
 }
-func (UnimplementedQueueServiceServer) AcknowledgeMessages(context.Context, *AcknowledgeMessagesRequest) (*AcknowledgeMessagesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AcknowledgeMessages not implemented")
+func (UnimplementedQueueServiceServer) AcknowledgeMessageBatch(context.Context, *AcknowledgeMessagesRequest) (*AcknowledgeMessagesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AcknowledgeMessageBatch not implemented")
 }
 func (UnimplementedQueueServiceServer) mustEmbedUnimplementedQueueServiceServer() {}
 
@@ -160,56 +160,56 @@ func (x *queueServiceWriteMessagesServer) Recv() (*RawQueueMessage, error) {
 	return m, nil
 }
 
-func _QueueService_SubmitMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _QueueService_SubmitMessageBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SubmitMessagesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueueServiceServer).SubmitMessages(ctx, in)
+		return srv.(QueueServiceServer).SubmitMessageBatch(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/message_queueing.QueueService/SubmitMessages",
+		FullMethod: "/message_queueing.QueueService/SubmitMessageBatch",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueueServiceServer).SubmitMessages(ctx, req.(*SubmitMessagesRequest))
+		return srv.(QueueServiceServer).SubmitMessageBatch(ctx, req.(*SubmitMessagesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _QueueService_RetrieveMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _QueueService_RetrieveMessageBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RetrieveMessagesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueueServiceServer).RetrieveMessages(ctx, in)
+		return srv.(QueueServiceServer).RetrieveMessageBatch(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/message_queueing.QueueService/RetrieveMessages",
+		FullMethod: "/message_queueing.QueueService/RetrieveMessageBatch",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueueServiceServer).RetrieveMessages(ctx, req.(*RetrieveMessagesRequest))
+		return srv.(QueueServiceServer).RetrieveMessageBatch(ctx, req.(*RetrieveMessagesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _QueueService_AcknowledgeMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _QueueService_AcknowledgeMessageBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AcknowledgeMessagesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueueServiceServer).AcknowledgeMessages(ctx, in)
+		return srv.(QueueServiceServer).AcknowledgeMessageBatch(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/message_queueing.QueueService/AcknowledgeMessages",
+		FullMethod: "/message_queueing.QueueService/AcknowledgeMessageBatch",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueueServiceServer).AcknowledgeMessages(ctx, req.(*AcknowledgeMessagesRequest))
+		return srv.(QueueServiceServer).AcknowledgeMessageBatch(ctx, req.(*AcknowledgeMessagesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -222,16 +222,16 @@ var QueueService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*QueueServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SubmitMessages",
-			Handler:    _QueueService_SubmitMessages_Handler,
+			MethodName: "SubmitMessageBatch",
+			Handler:    _QueueService_SubmitMessageBatch_Handler,
 		},
 		{
-			MethodName: "RetrieveMessages",
-			Handler:    _QueueService_RetrieveMessages_Handler,
+			MethodName: "RetrieveMessageBatch",
+			Handler:    _QueueService_RetrieveMessageBatch_Handler,
 		},
 		{
-			MethodName: "AcknowledgeMessages",
-			Handler:    _QueueService_AcknowledgeMessages_Handler,
+			MethodName: "AcknowledgeMessageBatch",
+			Handler:    _QueueService_AcknowledgeMessageBatch_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

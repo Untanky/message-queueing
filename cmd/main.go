@@ -66,7 +66,7 @@ func main() {
 
 func setupOTel() {
 	traceExporter, err := stdouttrace.New(
-		stdouttrace.WithPrettyPrint(), stdouttrace.WithWriter(log.Writer()), stdouttrace.WithoutTimestamps(),
+		stdouttrace.WithWriter(log.Writer()), stdouttrace.WithoutTimestamps(),
 	)
 	if err != nil {
 		panic(err)
@@ -86,7 +86,7 @@ func setupOTel() {
 	)
 
 	meterExporter, err := stdoutmetric.New(
-		stdoutmetric.WithoutTimestamps(), stdoutmetric.WithPrettyPrint(), stdoutmetric.WithWriter(log.Writer()),
+		stdoutmetric.WithoutTimestamps(), stdoutmetric.WithWriter(log.Writer()),
 	)
 	if err != nil {
 		panic(err)

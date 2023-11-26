@@ -63,7 +63,7 @@ func (m *MessageQueueingServer) WriteMessages(stream queueing.QueueService_Write
 	}
 }
 
-func (m *MessageQueueingServer) SubmitMessages(
+func (m *MessageQueueingServer) SubmitMessageBatch(
 	ctx context.Context, request *queueing.SubmitMessagesRequest,
 ) (*queueing.SubmitMessagesResponse, error) {
 	receipts := make([]*queueing.SubmitReceipt, 0, len(request.Messages))
@@ -102,7 +102,7 @@ func (m *MessageQueueingServer) SubmitMessages(
 	}, joinErr
 }
 
-func (m *MessageQueueingServer) RetrieveMessages(
+func (m *MessageQueueingServer) RetrieveMessageBatch(
 	ctx context.Context, request *queueing.RetrieveMessagesRequest,
 ) (*queueing.RetrieveMessagesResponse, error) {
 	var messages = make([]*queueing.QueueMessage, *request.Count)
@@ -119,7 +119,7 @@ func (m *MessageQueueingServer) RetrieveMessages(
 	}, nil
 }
 
-func (m *MessageQueueingServer) AcknowledgeMessages(
+func (m *MessageQueueingServer) AcknowledgeMessageBatch(
 	ctx context.Context, request *queueing.AcknowledgeMessagesRequest,
 ) (*queueing.AcknowledgeMessagesResponse, error) {
 	receipts := make([]*queueing.AcknowledgeReceipt, 0, len(request.MessageIDs))
