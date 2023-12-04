@@ -13,7 +13,22 @@ type queueTuple struct {
 	location MessageId
 }
 
-var NextMessageNotReady = errors.New("next message not ready yet")
+var NextMessageUnavailableError = errors.New("message unavailable")
+
+type messageUnavailableError string
+
+func (err messageUnavailableError) Error() string {
+	return string(err)
+}
+
+func (err messageUnavailableError) Unwrap() error {
+	return NextMessageUnavailableError
+}
+
+const (
+	NoMoreMessages      = messageUnavailableError("no more messages")
+	NextMessageNotReady = messageUnavailableError("next message not ready yet")
+)
 
 type heapWrapper struct {
 	data []queueTuple
@@ -28,6 +43,9 @@ func (h *heapWrapper) Less(i, j int) bool {
 }
 
 func (h *heapWrapper) Swap(i, j int) {
+	if i < 0 || j < 0 {
+		return
+	}
 	h.data[i], h.data[j] = h.data[j], h.data[i]
 }
 
@@ -43,6 +61,10 @@ func (h *heapWrapper) Push(x any) {
 
 func (h *heapWrapper) Pop() any {
 	l := len(h.data)
+	if l == 0 {
+		return nil
+	}
+
 	val := h.data[l-1]
 	h.data = h.data[:l-1]
 	return val
@@ -79,6 +101,10 @@ func (queue *timeoutQueue) Dequeue(before time.Time) (MessageId, error) {
 
 func (queue *timeoutQueue) dequeue(before time.Time) (MessageId, error) {
 	value := heap.Pop(queue.heap)
+	if value == nil {
+		return MessageId{}, NoMoreMessages
+	}
+
 	tuple := value.(queueTuple)
 	if tuple.timeout.After(before) {
 		heap.Push(queue.heap, value)

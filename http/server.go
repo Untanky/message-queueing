@@ -134,7 +134,7 @@ func (controller *QueueMessageController) getAvailableMessages(ctx *gin.Context)
 
 	messages := make([]*queueing.QueueMessage, messageCount)
 	actualCount, err := controller.service.Retrieve(ctx, messages)
-	if err != nil && !errors.Is(err, queueing.NextMessageNotReady) {
+	if err != nil && !errors.Is(err, queueing.NextMessageUnavailableError) {
 		httpErr := HttpError{
 			Status: http.StatusInternalServerError,
 			Msg:    "internal server error",
