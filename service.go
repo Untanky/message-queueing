@@ -2,8 +2,12 @@ package queueing
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
+	"io"
 	"time"
 )
 
@@ -28,6 +32,54 @@ type Repository interface {
 type globalQueueService struct {
 	repo         Repository
 	timeoutQueue *timeoutQueue
+}
+
+func SetupQueueMessageRepository(
+	file io.ReadWriteSeeker, index Index[MessageId, MessageLocation], queue *timeoutQueue,
+) {
+	loc := int64(0)
+	for {
+		message, length, err := readNextMessage(file)
+		if err == io.EOF {
+			break
+		}
+
+		if *message.Acknowledged != true {
+			mId := MessageId(uuid.Must(uuid.FromBytes(message.MessageID)))
+			index.Set(mId, MessageLocation(loc))
+
+			timeout := time.UnixMilli(*message.Timestamp)
+			if message.LastRetrieved != nil {
+				timeout = time.UnixMilli(*message.LastRetrieved).Add(defaultDelay)
+			}
+			queue.Enqueue(timeout, mId)
+		}
+		loc += length + 8
+	}
+
+	fmt.Println(queue.heap)
+}
+
+func readNextMessage(reader io.Reader) (*QueueMessage, int64, error) {
+	var length int64
+	err := binary.Read(reader, binary.BigEndian, &length)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data := make([]byte, length)
+	_, err = reader.Read(data)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var message QueueMessage
+	err = proto.Unmarshal(data, &message)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return &message, length, nil
 }
 
 func NewQueueService(repo Repository, timeoutQueue *timeoutQueue) Service {

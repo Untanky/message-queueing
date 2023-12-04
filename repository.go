@@ -2,12 +2,8 @@ package queueing
 
 import (
 	"context"
-	"encoding/binary"
-	"fmt"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
-	"io"
-	"os"
 	"sync"
 	"time"
 )
@@ -34,51 +30,6 @@ type queueMessageRepository struct {
 
 	storage BlockStorage
 	index   Index[MessageId, MessageLocation]
-}
-
-func SetupQueueMessageRepository(id string) (Repository, error) {
-	file, err := os.OpenFile(fmt.Sprintf("data/%s", id), os.O_CREATE|os.O_RDWR, 0600)
-	if err != nil {
-		return nil, err
-	}
-
-	storage := NewIOBlockStorage(file)
-	index := NewNaiveIndex()
-
-	loc := int64(0)
-	for {
-		message, length, err := readNextMessage(file)
-		if err == io.EOF {
-			break
-		}
-		index.Set(MessageId(uuid.Must(uuid.FromBytes(message.MessageID))), MessageLocation(loc))
-		loc += length + 8
-	}
-
-	repo := NewQueueMessageRepository(storage, index)
-	return repo, nil
-}
-
-func readNextMessage(reader io.Reader) (*QueueMessage, int64, error) {
-	var length int64
-	err := binary.Read(reader, binary.BigEndian, &length)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	data := make([]byte, length)
-	_, err = reader.Read(data)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	var message QueueMessage
-	err = proto.Unmarshal(data, &message)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return &message, length, nil
 }
 
 func NewQueueMessageRepository(

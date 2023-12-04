@@ -16,6 +16,7 @@ import (
 	"message-queueing/otel"
 	"net"
 	nethttp "net/http"
+	"os"
 	"time"
 )
 
@@ -27,19 +28,25 @@ func main() {
 	setupOTel()
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
-
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	repo, err := queueing.SetupQueueMessageRepository("abc")
+	file, err := os.OpenFile(fmt.Sprintf("data/%s", "abc"), os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to open file: %w", err)
 	}
 
+	storage := queueing.NewIOBlockStorage(file)
+	index := queueing.NewNaiveIndex()
+	queue := queueing.NewTimeoutQueue()
+
+	queueing.SetupQueueMessageRepository(file, index, queue)
+
+	repo := queueing.NewQueueMessageRepository(storage, index)
 	repo = otel.WrapRepository(repo)
 
-	service := queueing.NewQueueService(repo, queueing.NewTimeoutQueue())
+	service := queueing.NewQueueService(repo, queue)
 	service, err = otel.WrapService(service)
 	if err != nil {
 		panic(err)
@@ -47,18 +54,6 @@ func main() {
 
 	handler := http.NewServer(service)
 	nethttp.Serve(lis, handler)
-
-	//interceptor, err := otel.NewInterceptor()
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	//opts := []grpc.ServerOption{
-	//	grpc.UnaryInterceptor(interceptor.UnaryInterceptor),
-	//}
-	//grpcServer := grpc.NewServer(opts...)
-	//queueing.RegisterQueueServiceServer(grpcServer, NewMessageQueueingServer(service))
-	//grpcServer.Serve(lis)
 }
 
 func setupOTel() {
