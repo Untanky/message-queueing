@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func NewServer() http.Handler {
+func NewServer(service queueing.Service) http.Handler {
 	router := gin.Default()
 
 	tls.NewListener(
@@ -23,13 +23,15 @@ func NewServer() http.Handler {
 
 	router.Use(gin.Recovery())
 
-	controller := QueueMessageController{}
+	controller := QueueMessageController{
+		service: service,
+	}
 
 	api := router.Group("/api/v1")
 	queueAPI := api.Group("/queues/:queueID")
 	queueAPI.POST("/messages", controller.postMessage)
 	queueAPI.GET("/messages/available", controller.getAvailableMessages)
-	queueAPI.GET("/messages/:messageID/acknowledge", controller.postAcknowledgeMessage)
+	queueAPI.POST("/messages/:messageID/acknowledge", controller.postAcknowledgeMessage)
 
 	return router
 }
@@ -65,7 +67,7 @@ type MessageReceipt struct {
 
 func (controller *QueueMessageController) postMessage(ctx *gin.Context) {
 	var body InputMessage
-	if err := ctx.ShouldBindJSON(body); err != nil {
+	if err := ctx.ShouldBindJSON(&body); err != nil {
 		httpErr := HttpError{
 			Status: http.StatusBadRequest,
 			Msg:    "bad request",

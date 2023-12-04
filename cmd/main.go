@@ -10,11 +10,12 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
-	"google.golang.org/grpc"
 	"log"
 	queueing "message-queueing"
+	"message-queueing/http"
 	"message-queueing/otel"
 	"net"
+	nethttp "net/http"
 	"os"
 	"time"
 )
@@ -51,17 +52,20 @@ func main() {
 		panic(err)
 	}
 
-	interceptor, err := otel.NewInterceptor()
-	if err != nil {
-		panic(err)
-	}
+	handler := http.NewServer(service)
+	nethttp.Serve(lis, handler)
 
-	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(interceptor.UnaryInterceptor),
-	}
-	grpcServer := grpc.NewServer(opts...)
-	queueing.RegisterQueueServiceServer(grpcServer, NewMessageQueueingServer(service))
-	grpcServer.Serve(lis)
+	//interceptor, err := otel.NewInterceptor()
+	//if err != nil {
+	//	panic(err)
+	//}
+
+	//opts := []grpc.ServerOption{
+	//	grpc.UnaryInterceptor(interceptor.UnaryInterceptor),
+	//}
+	//grpcServer := grpc.NewServer(opts...)
+	//queueing.RegisterQueueServiceServer(grpcServer, NewMessageQueueingServer(service))
+	//grpcServer.Serve(lis)
 }
 
 func setupOTel() {
