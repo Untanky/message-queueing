@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	api "go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
@@ -14,6 +15,7 @@ import (
 	queueing "message-queueing"
 	"message-queueing/http"
 	"message-queueing/otel"
+	"message-queueing/replication"
 	"net"
 	nethttp "net/http"
 	"os"
@@ -26,6 +28,25 @@ func main() {
 	flag.Parse()
 
 	setupOTel()
+
+	etcdClient, err := clientv3.New(
+		clientv3.Config{
+			Endpoints:   []string{"localhost:2379"},
+			DialTimeout: 5 * time.Second,
+		},
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	controller := replication.ReplicationController{
+		EtcdClient: etcdClient,
+	}
+
+	err = controller.StartUp()
+	if err != nil {
+		panic(err)
+	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
 	if err != nil {
