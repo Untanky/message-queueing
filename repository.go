@@ -55,8 +55,6 @@ func SetupQueueMessageRepository(id string) (Repository, error) {
 		loc += length + 8
 	}
 
-	fmt.Println(index.(*naiveIndex).data)
-
 	repo := NewQueueMessageRepository(storage, index)
 	return repo, nil
 }

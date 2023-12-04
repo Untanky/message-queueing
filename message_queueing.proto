@@ -2,17 +2,6 @@ package message_queueing;
 
 option go_package="./queueing";
 
-
-// Queue message used as input
-//
-// Data type used when submitting new messages to the system.
-message RawQueueMessage {
-  // raw message data as a byte array, the bytes will be returned as they are received
-  required bytes data = 1;
-  // attributes associated with the message, can be used to represent metadata
-  map<string, string> attributes = 2;
-}
-
 // Queue message representation in the system
 //
 // QueueMessage represents the a RawQueueMessage after it has been submitted
@@ -32,56 +21,4 @@ message QueueMessage {
   optional int64 lastRetrieved = 6;
 
   required bool acknowledged = 7;
-}
-
-message SubmitReceipt {
-  required string messageID = 1;
-  required bool ok = 2;
-  optional string reason = 3;
-  optional int64 timestamp = 4;
-  optional bytes dataHash = 5;
-}
-
-message SubmitMessagesRequest {
-  required string queueID = 1;
-  repeated RawQueueMessage messages = 2;
-}
-
-message SubmitMessagesResponse {
-  repeated SubmitReceipt receipts = 1;
-}
-
-message RetrieveMessagesRequest {
-  required int32 count = 1;
-}
-
-message RetrieveMessagesResponse {
-  required int32 count = 1;
-  repeated QueueMessage messages = 2;
-}
-
-message AcknowledgeMessagesRequest {
-  repeated string messageIDs = 1;
-}
-
-message AcknowledgeReceipt {
-  required string messageID = 1;
-  required bool ok = 2;
-  optional string reason = 3;
-}
-
-message AcknowledgeMessagesResponse {
-  repeated AcknowledgeReceipt receipts = 1;
-}
-
-message WatchMessageRequest {}
-
-message WatchMessageResponse {}
-
-//
-service QueueService {
-  rpc WriteMessages(stream RawQueueMessage) returns (stream SubmitReceipt);
-  rpc SubmitMessageBatch(SubmitMessagesRequest) returns (SubmitMessagesResponse);
-  rpc RetrieveMessageBatch(RetrieveMessagesRequest) returns (RetrieveMessagesResponse);
-  rpc AcknowledgeMessageBatch(AcknowledgeMessagesRequest) returns (AcknowledgeMessagesResponse);
 }
