@@ -2,10 +2,8 @@ package queueing
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/google/uuid"
-	"io"
 	"time"
 )
 
@@ -25,69 +23,6 @@ type Repository interface {
 	Create(ctx context.Context, message *QueueMessage) error
 	Update(ctx context.Context, message *QueueMessage) error
 	Delete(ctx context.Context, message *QueueMessage) error
-}
-
-type walEvent struct {
-	EventType string `json:"type"`
-	Data      any    `json:"data"`
-}
-
-type walQueueService struct {
-	log io.Writer
-
-	service Service
-}
-
-func NewWriteAheadLogQueueService(writer io.Writer, service Service) Service {
-	return &walQueueService{
-		log:     writer,
-		service: service,
-	}
-}
-
-func (queue *walQueueService) Enqueue(ctx context.Context, message *QueueMessage) error {
-	err := json.NewEncoder(queue.log).Encode(
-		walEvent{
-			EventType: "enqueue",
-			Data:      message,
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return queue.service.Enqueue(ctx, message)
-}
-
-func (queue *walQueueService) Retrieve(ctx context.Context, messages []*QueueMessage) (int, error) {
-	n, err := queue.service.Retrieve(ctx, messages)
-
-	walErr := json.NewEncoder(queue.log).Encode(
-		walEvent{
-			EventType: "retrieve",
-			Data:      messages,
-		},
-	)
-
-	if walErr != nil {
-		return 0, errors.Join(WalError, FatalDequeueMitigationError)
-	}
-
-	return n, err
-}
-
-func (queue *walQueueService) Acknowledge(ctx context.Context, messageID uuid.UUID) error {
-	err := json.NewEncoder(queue.log).Encode(
-		walEvent{
-			EventType: "enqueue",
-			Data:      messageID,
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	return queue.service.Acknowledge(ctx, messageID)
 }
 
 type globalQueueService struct {

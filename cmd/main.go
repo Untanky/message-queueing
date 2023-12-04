@@ -16,7 +16,6 @@ import (
 	"message-queueing/otel"
 	"net"
 	nethttp "net/http"
-	"os"
 	"time"
 )
 
@@ -33,11 +32,6 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	walFile, err := os.Create(fmt.Sprintf("data/wal-%x", time.Now().UnixMilli()))
-	if err != nil {
-		panic(err)
-	}
-
 	repo, err := queueing.SetupQueueMessageRepository("abc")
 	if err != nil {
 		panic(err)
@@ -46,7 +40,6 @@ func main() {
 	repo = otel.WrapRepository(repo)
 
 	service := queueing.NewQueueService(repo, queueing.NewTimeoutQueue())
-	service = queueing.NewWriteAheadLogQueueService(walFile, service)
 	service, err = otel.WrapService(service)
 	if err != nil {
 		panic(err)
