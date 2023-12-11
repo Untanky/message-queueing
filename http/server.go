@@ -33,6 +33,14 @@ func NewServer(service queueing.Service) http.Handler {
 	queueAPI.GET("/messages/available", controller.getAvailableMessages)
 	queueAPI.POST("/messages/:messageID/acknowledge", controller.postAcknowledgeMessage)
 
+	internal := router.Group("/internal")
+	internal.GET("/queue/:queueID/manifest")
+	internal.GET("/queue/:queueID/file/:fileID")
+	//internal.POST("/queue/:queueID/messages")
+	//internal.GET("/queue/:queueID/messages/available")
+	//internal.GET("/queue/:queueID/messages/:messageID")
+	//internal.POST("/queue/:queueID/messages/:messageID/acknowledge")
+
 	return router
 }
 
