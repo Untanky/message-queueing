@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
 	"io"
@@ -56,8 +55,6 @@ func SetupQueueMessageRepository(
 		}
 		loc += length + 8
 	}
-
-	fmt.Println(queue.heap)
 }
 
 func readNextMessage(reader io.Reader) (*QueueMessage, int64, error) {

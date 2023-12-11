@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -19,6 +20,7 @@ import (
 	"net"
 	nethttp "net/http"
 	"os"
+	"os/signal"
 	"time"
 )
 
@@ -43,7 +45,7 @@ func main() {
 		EtcdClient: etcdClient,
 	}
 
-	err = controller.StartUp()
+	err = controller.StartUp(context.TODO())
 	if err != nil {
 		panic(err)
 	}
@@ -72,6 +74,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel)
+
+	go func(c <-chan os.Signal) {
+		<-c
+		controller.Close()
+		lis.Close()
+		os.Exit(2)
+	}(signalChannel)
 
 	handler := http.NewServer(service)
 	nethttp.Serve(lis, handler)
