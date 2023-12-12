@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"io"
 	"log/slog"
+	http2 "message-queueing/http"
+	"net/http"
 	"os"
 )
 
@@ -54,7 +57,39 @@ func (controller *ReplicationController) StartUp(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%v\n", existingNodes)
+	var mainNode *node
+	for _, existingNode := range existingNodes {
+		if existingNode.Main {
+			mainNode = existingNode
+		}
+	}
+
+	if !controller.self.Main {
+		var resp *http.Response
+		resp, err = http.Get(fmt.Sprintf("http://%s:8080/internal/queue/:queueID/manifest", mainNode.Hostname))
+		if err != nil {
+			return err
+		}
+		manifestResponse := new(http2.GetManifestResponse)
+		json.NewDecoder(resp.Body).Decode(manifestResponse)
+
+		for _, file := range manifestResponse.Files {
+			resp, err = http.Get(fmt.Sprintf("http://%s:8080/internal/queue/:queueID/file/%s", mainNode.Hostname, file))
+			if err != nil {
+				return err
+			}
+
+			var f *os.File
+			f, err = os.OpenFile("data1/abc", os.O_CREATE|os.O_RDWR, 0600)
+
+			_, err = io.Copy(f, resp.Body)
+			if err != nil {
+				f.Close()
+				return err
+			}
+			f.Close()
+		}
+	}
 
 	slog.Info("registering this node", "nodeID", fmt.Sprintf("node/%s", controller.self.ID))
 	err = controller.register(ctx)

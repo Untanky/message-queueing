@@ -58,7 +58,7 @@ func testBlockStorageAPI(t *testing.T, storage queueing.BlockStorage) {
 	a := []byte("Hello World")
 	b := []byte("Goodbye World")
 
-	locA, err := storage.Write(a)
+	locA, err := storage.WriteBlock(a)
 	if err != nil {
 		t.Fatalf("err: expected nil, got %v", err)
 	}
@@ -66,7 +66,7 @@ func testBlockStorageAPI(t *testing.T, storage queueing.BlockStorage) {
 		t.Fatalf("locA: expected %d, got %d", 0, locA)
 	}
 
-	locB, err := storage.Write(b)
+	locB, err := storage.WriteBlock(b)
 	if err != nil {
 		t.Fatalf("err: expected nil, got %v", err)
 	}
@@ -74,7 +74,7 @@ func testBlockStorageAPI(t *testing.T, storage queueing.BlockStorage) {
 		t.Fatalf("locA: expected %d, got %d", 19, locB)
 	}
 
-	dataA, err := storage.Read(locA)
+	dataA, err := storage.ReadBlock(locA)
 	if err != nil {
 		t.Fatalf("err: expected nil, got %v", err)
 	}
@@ -82,7 +82,7 @@ func testBlockStorageAPI(t *testing.T, storage queueing.BlockStorage) {
 		t.Fatalf("dataA: expected %v, got %v", a, dataA)
 	}
 
-	dataB, err := storage.Read(locB)
+	dataB, err := storage.ReadBlock(locB)
 	if err != nil {
 		t.Fatalf("err: expected nil, got %v", err)
 	}

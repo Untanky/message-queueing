@@ -76,7 +76,7 @@ func main() {
 	}
 
 	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel)
+	signal.Notify(signalChannel, os.Interrupt)
 
 	go func(c <-chan os.Signal) {
 		<-c
@@ -85,7 +85,7 @@ func main() {
 		os.Exit(2)
 	}(signalChannel)
 
-	handler := http.NewServer(service)
+	handler := http.NewServer(service, storage)
 	nethttp.Serve(lis, handler)
 }
 

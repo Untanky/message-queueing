@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"os"
 	"sync"
 )
 
@@ -20,7 +21,7 @@ func NewIOBlockStorage(handler io.ReadWriteSeeker) BlockStorage {
 	}
 }
 
-func (storage *ioBlockStorage) Write(data []byte) (int64, error) {
+func (storage *ioBlockStorage) WriteBlock(data []byte) (int64, error) {
 	l := len(data)
 
 	storage.lock.Lock()
@@ -44,7 +45,7 @@ func (storage *ioBlockStorage) Write(data []byte) (int64, error) {
 	return off, nil
 }
 
-func (storage *ioBlockStorage) Overwrite(location int64, data []byte) error {
+func (storage *ioBlockStorage) OverwriteBlock(location int64, data []byte) error {
 	l := len(data)
 
 	storage.lock.Lock()
@@ -73,7 +74,7 @@ func (storage *ioBlockStorage) Overwrite(location int64, data []byte) error {
 	return nil
 }
 
-func (storage *ioBlockStorage) Read(location int64) ([]byte, error) {
+func (storage *ioBlockStorage) ReadBlock(location int64) ([]byte, error) {
 	storage.lock.Lock()
 	defer storage.lock.Unlock()
 
@@ -95,4 +96,13 @@ func (storage *ioBlockStorage) Read(location int64) ([]byte, error) {
 	}
 
 	return data, err
+}
+
+func (storage *ioBlockStorage) GetReader() io.ReadCloser {
+	reader, err := os.Open("data/abc")
+	if err != nil {
+		return nil
+	}
+
+	return reader
 }

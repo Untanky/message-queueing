@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
+	"io"
 	"sync"
 	"time"
 )
@@ -12,9 +13,11 @@ type MessageId uuid.UUID
 type MessageLocation uint64
 
 type BlockStorage interface {
-	Write([]byte) (int64, error)
-	Overwrite(location int64, data []byte) error
-	Read(location int64) ([]byte, error)
+	WriteBlock([]byte) (int64, error)
+	OverwriteBlock(location int64, data []byte) error
+	ReadBlock(location int64) ([]byte, error)
+
+	GetReader() io.ReadCloser
 }
 
 type Index[Key comparable, Value any] interface {
@@ -52,7 +55,7 @@ func (q queueMessageRepository) GetByID(ctx context.Context, id uuid.UUID) (*Que
 		return nil, NotFoundError
 	}
 
-	data, err := q.storage.Read(int64(loc))
+	data, err := q.storage.ReadBlock(int64(loc))
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +83,7 @@ func (q queueMessageRepository) Create(ctx context.Context, message *QueueMessag
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
-	loc, err := q.storage.Write(data)
+	loc, err := q.storage.WriteBlock(data)
 	if err != nil {
 		return err
 	}
@@ -104,7 +107,7 @@ func (q queueMessageRepository) Update(ctx context.Context, message *QueueMessag
 		return err
 	}
 
-	return q.storage.Overwrite(int64(loc), data)
+	return q.storage.OverwriteBlock(int64(loc), data)
 }
 
 func (q queueMessageRepository) Delete(ctx context.Context, message *QueueMessage) error {

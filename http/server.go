@@ -6,13 +6,14 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"io"
 	queueing "message-queueing"
 	"net/http"
 	"strconv"
 	"time"
 )
 
-func NewServer(service queueing.Service) http.Handler {
+func NewServer(service queueing.Service, storage queueing.BlockStorage) http.Handler {
 	router := gin.Default()
 
 	tls.NewListener(
@@ -27,6 +28,10 @@ func NewServer(service queueing.Service) http.Handler {
 		service: service,
 	}
 
+	internalCtrlr := internalController{
+		storage: storage,
+	}
+
 	api := router.Group("/api/v1")
 	queueAPI := api.Group("/queues/:queueID")
 	queueAPI.POST("/messages", controller.postMessage)
@@ -34,8 +39,8 @@ func NewServer(service queueing.Service) http.Handler {
 	queueAPI.POST("/messages/:messageID/acknowledge", controller.postAcknowledgeMessage)
 
 	internal := router.Group("/internal")
-	internal.GET("/queue/:queueID/manifest")
-	internal.GET("/queue/:queueID/file/:fileID")
+	internal.GET("/queue/:queueID/manifest", internalCtrlr.getManifest)
+	internal.GET("/queue/:queueID/file/:fileID", internalCtrlr.getFile)
 	//internal.POST("/queue/:queueID/messages")
 	//internal.GET("/queue/:queueID/messages/available")
 	//internal.GET("/queue/:queueID/messages/:messageID")
@@ -182,4 +187,29 @@ func (controller *QueueMessageController) postAcknowledgeMessage(ctx *gin.Contex
 	}
 
 	ctx.Status(http.StatusNoContent)
+}
+
+type internalController struct {
+	storage queueing.BlockStorage
+}
+
+type GetManifestResponse struct {
+	Files []string `json:"files"`
+}
+
+func (controller *internalController) getManifest(ctx *gin.Context) {
+	ctx.JSON(
+		http.StatusOK, GetManifestResponse{
+			Files: []string{"abc"},
+		},
+	)
+}
+
+func (controller *internalController) getFile(ctx *gin.Context) {
+	reader := controller.storage.GetReader()
+
+	w := ctx.Writer
+	w.WriteHeader(http.StatusOK)
+	io.Copy(w, reader)
+	reader.Close()
 }
