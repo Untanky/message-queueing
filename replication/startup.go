@@ -25,97 +25,89 @@ type node struct {
 	Main     bool      `json:"main"`
 }
 
-type ReplicationController struct {
-	EtcdClient *clientv3.Client
-
-	self     node
-	nodeChan clientv3.WatchChan
-	quit     chan bool
-	err      chan error
+type Controller struct {
+	etcdClient *clientv3.Client
+	self       node
+	nodeChan   clientv3.WatchChan
+	quit       chan bool
+	err        chan error
+	closed     bool
 }
 
-func (controller *ReplicationController) StartUp(ctx context.Context) error {
-	controller.quit = make(chan bool)
-	controller.err = make(chan error)
+func Open(ctx context.Context, etcdClient *clientv3.Client) (*Controller, error) {
+	quit := make(chan bool)
+	errChan := make(chan error)
 
 	if *hostname == "" {
 		host, err := os.Hostname()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		*hostname = host
 	}
 
-	controller.self = node{
+	self := node{
 		ID:       uuid.New(),
 		Hostname: *hostname,
 		Main:     *main,
 	}
 
-	existingNodes, err := controller.getExistingNodes(ctx)
-	if err != nil {
-		return err
-	}
-	var mainNode *node
-	for _, existingNode := range existingNodes {
-		if existingNode.Main {
-			mainNode = existingNode
-		}
+	controller := Controller{
+		quit:       quit,
+		err:        errChan,
+		self:       self,
+		etcdClient: etcdClient,
+		nodeChan:   etcdClient.Watch(context.TODO(), fmt.Sprintf("node"), clientv3.WithPrefix()),
+		closed:     false,
 	}
 
 	if !controller.self.Main {
-		var resp *http.Response
-		resp, err = http.Get(fmt.Sprintf("http://%s:8080/internal/queue/:queueID/manifest", mainNode.Hostname))
+		existingNodes, err := controller.getExistingNodes(ctx)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		manifestResponse := new(http2.GetManifestResponse)
-		json.NewDecoder(resp.Body).Decode(manifestResponse)
 
-		for _, file := range manifestResponse.Files {
-			resp, err = http.Get(fmt.Sprintf("http://%s:8080/internal/queue/:queueID/file/%s", mainNode.Hostname, file))
-			if err != nil {
-				return err
+		var mainNode *node
+		for _, existingNode := range existingNodes {
+			if existingNode.Main {
+				mainNode = existingNode
 			}
+		}
 
-			var f *os.File
-			f, err = os.OpenFile("data1/abc", os.O_CREATE|os.O_RDWR, 0600)
+		if mainNode == nil {
+			return nil, err
+		}
 
-			_, err = io.Copy(f, resp.Body)
-			if err != nil {
-				f.Close()
-				return err
-			}
-			f.Close()
+		err = controller.syncFiles(ctx, mainNode)
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	slog.Info("registering this node", "nodeID", fmt.Sprintf("node/%s", controller.self.ID))
-	err = controller.register(ctx)
+	err := controller.register(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	controller.nodeChan = controller.EtcdClient.Watch(context.TODO(), fmt.Sprintf("node"), clientv3.WithPrefix())
 
 	go controller.handleAsyncUpdates()
 
-	return nil
+	return &Controller{}, nil
 }
 
-func (controller *ReplicationController) register(ctx context.Context) error {
+func (controller *Controller) register(ctx context.Context) error {
 	data, err := json.Marshal(controller.self)
 	if err != nil {
 		return err
 	}
 
-	_, err = controller.EtcdClient.Put(ctx, fmt.Sprintf("node/%s", controller.self.ID), string(data))
+	_, err = controller.etcdClient.Put(ctx, fmt.Sprintf("node/%s", controller.self.ID), string(data))
 	return err
 }
 
-func (controller *ReplicationController) getExistingNodes(ctx context.Context) ([]*node, error) {
-	getResponse, err := controller.EtcdClient.Get(ctx, fmt.Sprintf("node"), clientv3.WithPrefix())
+func (controller *Controller) getExistingNodes(ctx context.Context) ([]*node, error) {
+	getResponse, err := controller.etcdClient.Get(ctx, fmt.Sprintf("node"), clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
@@ -135,17 +127,94 @@ func (controller *ReplicationController) getExistingNodes(ctx context.Context) (
 	return nodes, nil
 }
 
-func (controller *ReplicationController) deregister(ctx context.Context) error {
-	_, err := controller.EtcdClient.Delete(ctx, fmt.Sprintf("node/%s", controller.self.ID))
+func (mainNode *node) getManifest(ctx context.Context) (*http2.GetManifestResponse, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s:8080/internal/queue/:queueID/manifest", mainNode.Hostname))
+	if err != nil {
+		return nil, err
+	}
+	manifestResponse := new(http2.GetManifestResponse)
+
+	err = json.NewDecoder(resp.Body).Decode(manifestResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return manifestResponse, nil
+}
+
+func (controller *Controller) syncFiles(ctx context.Context, mainNode *node) error {
+	manifest, err := mainNode.getManifest(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range manifest.Files {
+		err = controller.syncFile(ctx, mainNode, file)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (controller *Controller) syncFile(ctx context.Context, mainNode *node, fileID string) error {
+	reader, err := mainNode.getReader(fileID)
+	if err != nil {
+		return err
+	}
+
+	writer, err := controller.getWriter(fileID)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	_, err = io.Copy(writer, reader)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (*Controller) getWriter(fileID string) (io.WriteCloser, error) {
+	file, err := os.OpenFile(fmt.Sprintf("data1/%s", fileID), os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return nil, err
+	}
+
+	return file, err
+}
+
+func (mainNode *node) getReader(fileID string) (io.Reader, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s:8080/internal/queue/:queueID/file/%s", mainNode.Hostname, fileID))
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, err
+	}
+
+	return resp.Body, err
+}
+
+func (controller *Controller) deregister(ctx context.Context) error {
+	_, err := controller.etcdClient.Delete(ctx, fmt.Sprintf("node/%s", controller.self.ID))
 	return err
 }
 
-func (controller *ReplicationController) Close() error {
+func (controller *Controller) Close() error {
+	if controller.closed {
+		return nil
+	}
+
 	controller.quit <- true
 	return <-controller.err
 }
 
-func (controller *ReplicationController) handleAsyncUpdates() {
+func (controller *Controller) handleAsyncUpdates() {
 	for {
 		select {
 		case resp := <-controller.nodeChan:

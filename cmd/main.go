@@ -41,11 +41,7 @@ func main() {
 		panic(err)
 	}
 
-	controller := replication.ReplicationController{
-		EtcdClient: etcdClient,
-	}
-
-	err = controller.StartUp(context.TODO())
+	controller, err := replication.Open(context.TODO(), etcdClient)
 	if err != nil {
 		panic(err)
 	}
