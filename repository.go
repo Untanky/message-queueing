@@ -17,6 +17,7 @@ type BlockStorage interface {
 	OverwriteBlock(location int64, data []byte) error
 	ReadBlock(location int64) ([]byte, error)
 
+	Length() int64
 	io.ReaderFrom
 	io.WriterTo
 }

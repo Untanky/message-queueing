@@ -10,11 +10,6 @@ import (
 	"time"
 )
 
-var (
-	WalError                    = errors.New("error writing to write ahead log")
-	FatalDequeueMitigationError = errors.New("fatal error! writing to write ahead log failed AND could not enqueue messages again! potential data loss")
-)
-
 type Service interface {
 	Enqueue(ctx context.Context, message *QueueMessage) error
 	Retrieve(ctx context.Context, messages []*QueueMessage) (int, error)
