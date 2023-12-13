@@ -97,8 +97,6 @@ func (storage *ioBlockStorage) ReadBlock(location int64) ([]byte, error) {
 	return data, err
 }
 
-const bufferSize = 512
-
 func (storage *ioBlockStorage) Length() int64 {
 	storage.lock.Lock()
 	defer storage.lock.Unlock()
@@ -112,8 +110,15 @@ func (storage *ioBlockStorage) Length() int64 {
 }
 
 func (storage *ioBlockStorage) ReadFrom(r io.Reader) (int64, error) {
-	//TODO implement me
-	panic("implement me")
+	storage.lock.Lock()
+	defer storage.lock.Unlock()
+
+	_, err := storage.handler.Seek(0, io.SeekStart)
+	if err != nil {
+		return 0, err
+	}
+
+	return io.Copy(storage.handler, r)
 }
 
 func (storage *ioBlockStorage) WriteTo(w io.Writer) (int64, error) {
