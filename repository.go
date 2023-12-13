@@ -17,7 +17,8 @@ type BlockStorage interface {
 	OverwriteBlock(location int64, data []byte) error
 	ReadBlock(location int64) ([]byte, error)
 
-	GetReader() io.ReadCloser
+	io.ReaderFrom
+	io.WriterTo
 }
 
 type Index[Key comparable, Value any] interface {

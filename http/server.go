@@ -6,7 +6,6 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"io"
 	queueing "message-queueing"
 	"net/http"
 	"strconv"
@@ -206,10 +205,7 @@ func (controller *internalController) getManifest(ctx *gin.Context) {
 }
 
 func (controller *internalController) getFile(ctx *gin.Context) {
-	reader := controller.storage.GetReader()
-
 	w := ctx.Writer
 	w.WriteHeader(http.StatusOK)
-	io.Copy(w, reader)
-	reader.Close()
+	controller.storage.WriteTo(w)
 }
