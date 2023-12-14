@@ -59,7 +59,6 @@ func Open(ctx context.Context, etcdClient *clientv3.Client) (*Controller, error)
 		self:       &self,
 		main:       &self,
 		etcdClient: etcdClient,
-		nodeChan:   etcdClient.Watch(context.TODO(), fmt.Sprintf("node"), clientv3.WithPrefix()),
 		closed:     false,
 	}
 
@@ -69,7 +68,7 @@ func Open(ctx context.Context, etcdClient *clientv3.Client) (*Controller, error)
 	}
 
 	if !controller.self.Main {
-		err = controller.syncFiles(ctx)
+		err = controller.syncManifest(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -80,6 +79,8 @@ func Open(ctx context.Context, etcdClient *clientv3.Client) (*Controller, error)
 	if err != nil {
 		return nil, err
 	}
+
+	controller.nodeChan = etcdClient.Watch(ctx, "node", clientv3.WithPrefix())
 
 	go controller.handleAsyncUpdates()
 
@@ -93,6 +94,11 @@ func (controller *Controller) register(ctx context.Context) error {
 	}
 
 	_, err = controller.etcdClient.Put(ctx, fmt.Sprintf("node/%s", controller.self.ID), string(data))
+	return err
+}
+
+func (controller *Controller) deregister(ctx context.Context) error {
+	_, err := controller.etcdClient.Delete(ctx, fmt.Sprintf("node/%s", controller.self.ID))
 	return err
 }
 
@@ -118,37 +124,17 @@ func (controller *Controller) fetchNodes(ctx context.Context) error {
 	return nil
 }
 
-func (controller *Controller) syncFiles(ctx context.Context) error {
+func (controller *Controller) syncManifest(ctx context.Context) error {
 	manifest, err := controller.getManifest(ctx)
 	if err != nil {
 		return err
 	}
 
-	for _, file := range manifest.Files {
-		err = controller.syncFile(ctx, file)
+	for _, blobID := range manifest.Blobs {
+		err = controller.syncBlob(ctx, blobID)
 		if err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (controller *Controller) syncFile(ctx context.Context, fileID string) error {
-	reader, err := controller.getReader(fileID)
-	if err != nil {
-		return err
-	}
-
-	writer, err := controller.getWriter(fileID)
-	if err != nil {
-		return err
-	}
-	defer writer.Close()
-
-	_, err = io.Copy(writer, reader)
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -169,10 +155,30 @@ func (controller *Controller) getManifest(ctx context.Context) (*http2.GetManife
 	return manifestResponse, nil
 }
 
-func (controller *Controller) getReader(fileID string) (io.Reader, error) {
+func (controller *Controller) syncBlob(ctx context.Context, blobID string) error {
+	reader, err := controller.getBlobReader(ctx, blobID)
+	if err != nil {
+		return err
+	}
+
+	writer, err := controller.getBlobWriter(ctx, blobID)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+
+	_, err = io.Copy(writer, reader)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (controller *Controller) getBlobReader(ctx context.Context, blobID string) (io.Reader, error) {
 	resp, err := http.Get(
 		fmt.Sprintf(
-			"http://%s:8080/internal/queue/:queueID/file/%s", controller.main.Hostname, fileID,
+			"http://%s:8080/internal/queue/:queueID/blob/%s", controller.main.Hostname, blobID,
 		),
 	)
 	if err != nil {
@@ -186,18 +192,13 @@ func (controller *Controller) getReader(fileID string) (io.Reader, error) {
 	return resp.Body, err
 }
 
-func (*Controller) getWriter(fileID string) (io.WriteCloser, error) {
-	file, err := os.OpenFile(fmt.Sprintf("data1/%s", fileID), os.O_CREATE|os.O_RDWR, 0600)
+func (*Controller) getBlobWriter(ctx context.Context, blobID string) (io.WriteCloser, error) {
+	file, err := os.OpenFile(fmt.Sprintf("data1/%s", blobID), os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return nil, err
 	}
 
 	return file, err
-}
-
-func (controller *Controller) deregister(ctx context.Context) error {
-	_, err := controller.etcdClient.Delete(ctx, fmt.Sprintf("node/%s", controller.self.ID))
-	return err
 }
 
 func (controller *Controller) Close() error {
@@ -221,7 +222,7 @@ func (controller *Controller) handleAsyncUpdates() {
 				slog.Info("updated node from etcd", "nodeID", data.Kv.Key)
 			}
 		case <-controller.quit:
-			slog.Info("removing node data from etcd", "nodeID", controller.self.ID)
+			slog.Info("registering this node", "nodeID", fmt.Sprintf("node/%s", controller.self.ID))
 
 			err := controller.deregister(context.TODO())
 			controller.err <- err

@@ -12,13 +12,13 @@ type internalController struct {
 }
 
 type GetManifestResponse struct {
-	Files []string `json:"files"`
+	Blobs []string `json:"files"`
 }
 
 func (controller *internalController) getManifest(ctx *gin.Context) {
 	ctx.JSON(
 		http.StatusOK, GetManifestResponse{
-			Files: []string{"abc"},
+			Blobs: []string{"abc"},
 		},
 	)
 }

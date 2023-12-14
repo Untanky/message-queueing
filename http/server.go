@@ -34,7 +34,7 @@ func NewServer(service queueing.Service, storage queueing.BlockStorage) http.Han
 
 	internal := router.Group("/internal")
 	internal.GET("/queue/:queueID/manifest", internalCtrlr.getManifest)
-	internal.GET("/queue/:queueID/file/:fileID", internalCtrlr.getFile)
+	internal.GET("/queue/:queueID/blob/:fileID", internalCtrlr.getFile)
 	//internal.POST("/queue/:queueID/messages")
 	//internal.GET("/queue/:queueID/messages/available")
 	//internal.GET("/queue/:queueID/messages/:messageID")
