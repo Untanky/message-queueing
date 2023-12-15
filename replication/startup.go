@@ -202,7 +202,6 @@ func (*Controller) getBlobWriter(ctx context.Context, blobID string) (io.WriteCl
 }
 
 func (controller *Controller) Close() error {
-
 	if controller.closed {
 		return nil
 	}
@@ -216,10 +215,20 @@ func (controller *Controller) handleAsyncUpdates() {
 		select {
 		case resp := <-controller.nodeChan:
 			data := *resp.Events[0]
+
+			n := new(node)
+			err := json.Unmarshal(data.Kv.Value, n)
+			if err != nil {
+				slog.Error("could not unmarshal node", "nodeID", data.Kv.Key, "err", err)
+				continue
+			}
+
+			slog.Info("received node update", "nodeID", data.Kv.Key)
+
 			if data.IsCreate() {
-				slog.Info("got new node from etcd", "nodeID", data.Kv.Key)
+				controller.addNode(n)
 			} else if data.IsModify() {
-				slog.Info("updated node from etcd", "nodeID", data.Kv.Key)
+				controller.updateNode(n)
 			}
 		case <-controller.quit:
 			slog.Info("registering this node", "nodeID", fmt.Sprintf("node/%s", controller.self.ID))
@@ -231,4 +240,19 @@ func (controller *Controller) handleAsyncUpdates() {
 			close(controller.err)
 		}
 	}
+}
+
+func (controller *Controller) addNode(newNode *node) {
+	controller.nodes = append(controller.nodes, newNode)
+}
+
+func (controller *Controller) updateNode(updatedNode *node) {
+	for i, n := range controller.nodes {
+		if n.ID == updatedNode.ID {
+			controller.nodes[i] = updatedNode
+			return
+		}
+	}
+
+	controller.addNode(updatedNode)
 }
