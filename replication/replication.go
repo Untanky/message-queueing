@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	queueing "message-queueing"
 	"net/http"
 )
@@ -26,7 +25,7 @@ func WrapRepository(repo queueing.Repository) queueing.Repository {
 func (repo repository) GetByID(ctx context.Context, id uuid.UUID) (*queueing.QueueMessage, error) {
 	err := repo.syncGetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot get message by id due to upstream error: %w", err)
 	}
 
 	return repo.wrapped.GetByID(ctx, id)
@@ -56,7 +55,7 @@ func (repo repository) syncGetByID(ctx context.Context, id uuid.UUID) error {
 func (repo repository) Create(ctx context.Context, message *queueing.QueueMessage) error {
 	err := repo.syncCreate(ctx, message)
 	if err != nil {
-		return errors.Wrap(err, "cannot create message due to upstream error")
+		return fmt.Errorf("cannot create message due to upstream error: %w", err)
 	}
 
 	// TODO: implement rollback when upstream Create call fails
@@ -95,7 +94,7 @@ func (repo repository) syncCreate(ctx context.Context, message *queueing.QueueMe
 func (repo repository) Update(ctx context.Context, message *queueing.QueueMessage) error {
 	err := repo.syncUpdate(ctx, message)
 	if err != nil {
-		return errors.Wrap(err, "cannot update message due to upstream error")
+		return fmt.Errorf("cannot update message due to upstream error: %w", err)
 	}
 
 	// TODO: implement rollback when upstream Update call fails
@@ -139,7 +138,7 @@ func (repo repository) syncUpdate(ctx context.Context, message *queueing.QueueMe
 func (repo repository) Delete(ctx context.Context, message *queueing.QueueMessage) error {
 	err := repo.syncDelete(ctx, message)
 	if err != nil {
-		return errors.Wrap(err, "cannot get message by ID due to upstream error")
+		return fmt.Errorf("cannot get message by ID due to upstream error: %w", err)
 	}
 
 	// TODO: implement rollback when upstream Delete call fails

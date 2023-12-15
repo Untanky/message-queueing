@@ -65,6 +65,9 @@ func main() {
 
 	repo := queueing.NewQueueMessageRepository(storage, index)
 	repo = otel.WrapRepository(repo)
+	if *replication.Main {
+		repo = replication.WrapRepository(repo)
+	}
 
 	service := queueing.NewQueueService(repo, queue)
 	service, err = otel.WrapService(service)

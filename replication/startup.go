@@ -16,7 +16,7 @@ import (
 
 var (
 	hostname = flag.String("hostname", "", "Hostname of the node")
-	main     = flag.Bool("main", false, "is this node the Main node")
+	Main     = flag.Bool("main", false, "is this node the main node")
 )
 
 type node struct {
@@ -51,7 +51,7 @@ func Open(ctx context.Context, etcdClient *clientv3.Client, dataDir string) (*Co
 	self := node{
 		ID:       uuid.New(),
 		Hostname: *hostname,
-		Main:     *main,
+		Main:     *Main,
 	}
 
 	controller := &Controller{
