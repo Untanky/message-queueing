@@ -25,6 +25,7 @@ import (
 )
 
 var port = flag.Int("port", 8080, "the port of the application")
+var dataDir = flag.String("dataDir", "./data", "the directory to store the data in")
 
 func main() {
 	flag.Parse()
@@ -41,7 +42,7 @@ func main() {
 		panic(err)
 	}
 
-	controller, err := replication.Open(context.TODO(), etcdClient)
+	controller, err := replication.Open(context.TODO(), etcdClient, *dataDir)
 	if err != nil {
 		panic(err)
 	}
@@ -51,7 +52,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	file, err := os.OpenFile(fmt.Sprintf("data/%s", "abc"), os.O_CREATE|os.O_RDWR, 0600)
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s", *dataDir, "abc"), os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		log.Fatalf("failed to open file: %w", err)
 	}

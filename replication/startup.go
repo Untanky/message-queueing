@@ -34,9 +34,11 @@ type Controller struct {
 	quit       chan bool
 	err        chan error
 	closed     bool
+
+	dataDir string
 }
 
-func Open(ctx context.Context, etcdClient *clientv3.Client) (*Controller, error) {
+func Open(ctx context.Context, etcdClient *clientv3.Client, dataDir string) (*Controller, error) {
 	if *hostname == "" {
 		host, err := os.Hostname()
 		if err != nil {
@@ -60,6 +62,7 @@ func Open(ctx context.Context, etcdClient *clientv3.Client) (*Controller, error)
 		main:       &self,
 		etcdClient: etcdClient,
 		closed:     false,
+		dataDir:    dataDir,
 	}
 
 	err := controller.fetchNodes(ctx)
@@ -141,13 +144,14 @@ func (controller *Controller) syncManifest(ctx context.Context) error {
 }
 
 func (controller *Controller) getManifest(ctx context.Context) (*http2.GetManifestResponse, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s:8080/internal/queue/:queueID/manifest", controller.main.Hostname))
+	resp, err := http.Get(fmt.Sprintf("http://%s:8080/internal/queues/abc/manifest", controller.main.Hostname))
 	if err != nil {
 		return nil, err
 	}
-	manifestResponse := new(http2.GetManifestResponse)
 
+	manifestResponse := new(http2.GetManifestResponse)
 	err = json.NewDecoder(resp.Body).Decode(manifestResponse)
+	fmt.Println(err)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +182,7 @@ func (controller *Controller) syncBlob(ctx context.Context, blobID string) error
 func (controller *Controller) getBlobReader(ctx context.Context, blobID string) (io.Reader, error) {
 	resp, err := http.Get(
 		fmt.Sprintf(
-			"http://%s:8080/internal/queue/:queueID/blob/%s", controller.main.Hostname, blobID,
+			"http://%s:8080/internal/queues/abc/blob/%s", controller.main.Hostname, blobID,
 		),
 	)
 	if err != nil {
@@ -192,8 +196,8 @@ func (controller *Controller) getBlobReader(ctx context.Context, blobID string) 
 	return resp.Body, err
 }
 
-func (*Controller) getBlobWriter(ctx context.Context, blobID string) (io.WriteCloser, error) {
-	file, err := os.OpenFile(fmt.Sprintf("data1/%s", blobID), os.O_CREATE|os.O_RDWR, 0600)
+func (controller *Controller) getBlobWriter(ctx context.Context, blobID string) (io.WriteCloser, error) {
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s", controller.dataDir, blobID), os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return nil, err
 	}
