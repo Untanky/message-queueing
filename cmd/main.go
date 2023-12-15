@@ -29,7 +29,7 @@ var port = flag.Int("port", 8080, "the port of the application")
 func main() {
 	flag.Parse()
 
-	setupOTel()
+	//setupOTel()
 
 	etcdClient, err := clientv3.New(
 		clientv3.Config{
@@ -81,7 +81,7 @@ func main() {
 		os.Exit(2)
 	}(signalChannel)
 
-	handler := http.NewServer(service, storage)
+	handler := http.NewServer(service, storage, repo)
 	nethttp.Serve(lis, handler)
 }
 

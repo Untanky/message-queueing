@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func NewServer(service queueing.Service, storage queueing.BlockStorage) http.Handler {
+func NewServer(service queueing.Service, storage queueing.BlockStorage, repository queueing.Repository) http.Handler {
 	router := gin.Default()
 
 	tls.NewListener(
@@ -23,7 +23,8 @@ func NewServer(service queueing.Service, storage queueing.BlockStorage) http.Han
 	}
 
 	internalCtrlr := internalController{
-		storage: storage,
+		storage:    storage,
+		repository: repository,
 	}
 
 	api := router.Group("/api/v1")
@@ -33,12 +34,11 @@ func NewServer(service queueing.Service, storage queueing.BlockStorage) http.Han
 	queueAPI.POST("/messages/:messageID/acknowledge", controller.postAcknowledgeMessage)
 
 	internal := router.Group("/internal")
-	internal.GET("/queue/:queueID/manifest", internalCtrlr.getManifest)
-	internal.GET("/queue/:queueID/blob/:fileID", internalCtrlr.getFile)
-	//internal.POST("/queue/:queueID/messages")
-	//internal.GET("/queue/:queueID/messages/available")
-	//internal.GET("/queue/:queueID/messages/:messageID")
-	//internal.POST("/queue/:queueID/messages/:messageID/acknowledge")
+	internal.GET("/queues/:queueID/manifest", internalCtrlr.getManifest)
+	internal.GET("/queues/:queueID/blob/:fileID", internalCtrlr.getFile)
+	internal.POST("/queues/:queueID/messages", internalCtrlr.addMessage)
+	internal.GET("/queues/:queueID/messages/:messageID", internalCtrlr.getMessage)
+	internal.PUT("/queues/:queueID/messages/:messageID", internalCtrlr.updateMessage)
 
 	return router
 }
