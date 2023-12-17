@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"io"
 	"log/slog"
@@ -19,21 +18,15 @@ var (
 	Main     = flag.Bool("main", false, "is this node the main node")
 )
 
-type node struct {
-	ID       uuid.UUID `json:"id"`
-	Hostname string    `json:"hostname"`
-	Main     bool      `json:"main"`
-}
-
 type Controller struct {
 	etcdClient *clientv3.Client
-	nodes      []*node
-	self       *node
-	main       *node
 	nodeChan   clientv3.WatchChan
-	quit       chan bool
-	err        chan error
-	closed     bool
+
+	nodeService *nodeService
+
+	quit   chan bool
+	err    chan error
+	closed bool
 
 	dataDir string
 }
@@ -48,18 +41,12 @@ func Open(ctx context.Context, etcdClient *clientv3.Client, dataDir string) (*Co
 		*hostname = host
 	}
 
-	self := node{
-		ID:       uuid.New(),
-		Hostname: *hostname,
-		Main:     *Main,
-	}
-
 	controller := &Controller{
-		quit:       make(chan bool, 1),
-		err:        make(chan error),
-		nodes:      []*node{&self},
-		self:       &self,
-		main:       &self,
+		quit: make(chan bool, 1),
+		err:  make(chan error),
+		nodeService: &nodeService{
+			nodes: make([]*node, 0),
+		},
 		etcdClient: etcdClient,
 		closed:     false,
 		dataDir:    dataDir,
@@ -70,14 +57,14 @@ func Open(ctx context.Context, etcdClient *clientv3.Client, dataDir string) (*Co
 		return nil, err
 	}
 
-	if !controller.self.Main {
+	if !GetSelf().IsMain() {
 		err = controller.syncManifest(ctx)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	slog.Info("registering this node", "nodeID", fmt.Sprintf("node/%s", controller.self.ID))
+	slog.Info("registering this node", "nodeID", fmt.Sprintf("node/%s", GetSelf().ID()))
 	err = controller.register(ctx)
 	if err != nil {
 		return nil, err
@@ -91,17 +78,17 @@ func Open(ctx context.Context, etcdClient *clientv3.Client, dataDir string) (*Co
 }
 
 func (controller *Controller) register(ctx context.Context) error {
-	data, err := json.Marshal(controller.self)
+	data, err := json.Marshal(GetSelf())
 	if err != nil {
 		return err
 	}
 
-	_, err = controller.etcdClient.Put(ctx, fmt.Sprintf("node/%s", controller.self.ID), string(data))
+	_, err = controller.etcdClient.Put(ctx, fmt.Sprintf("node/%s", GetSelf().ID()), string(data))
 	return err
 }
 
 func (controller *Controller) deregister(ctx context.Context) error {
-	_, err := controller.etcdClient.Delete(ctx, fmt.Sprintf("node/%s", controller.self.ID))
+	_, err := controller.etcdClient.Delete(ctx, fmt.Sprintf("node/%s", GetSelf().ID()))
 	return err
 }
 
@@ -117,11 +104,7 @@ func (controller *Controller) fetchNodes(ctx context.Context) error {
 		if err != nil {
 			slog.ErrorContext(ctx, "could not parse node", "nodeID", kv.Key)
 		}
-
-		controller.nodes = append(controller.nodes, n)
-		if n.Main {
-			controller.main = n
-		}
+		controller.nodeService.upsertNode(n)
 	}
 
 	return nil
@@ -144,7 +127,11 @@ func (controller *Controller) syncManifest(ctx context.Context) error {
 }
 
 func (controller *Controller) getManifest(ctx context.Context) (*http2.GetManifestResponse, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s:8080/internal/queues/abc/manifest", controller.main.Hostname))
+	resp, err := http.Get(
+		fmt.Sprintf(
+			"http://%s:8080/internal/queues/abc/manifest", controller.nodeService.GetMain().Host(),
+		),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +169,7 @@ func (controller *Controller) syncBlob(ctx context.Context, blobID string) error
 func (controller *Controller) getBlobReader(ctx context.Context, blobID string) (io.Reader, error) {
 	resp, err := http.Get(
 		fmt.Sprintf(
-			"http://%s:8080/internal/queues/abc/blob/%s", controller.main.Hostname, blobID,
+			"http://%s:8080/internal/queues/abc/blob/%s", controller.nodeService.GetMain().Host(), blobID,
 		),
 	)
 	if err != nil {
@@ -228,14 +215,9 @@ func (controller *Controller) handleAsyncUpdates() {
 			}
 
 			slog.Info("received node update", "nodeID", data.Kv.Key)
-
-			if data.IsCreate() {
-				controller.addNode(n)
-			} else if data.IsModify() {
-				controller.updateNode(n)
-			}
+			controller.nodeService.upsertNode(n)
 		case <-controller.quit:
-			slog.Info("registering this node", "nodeID", fmt.Sprintf("node/%s", controller.self.ID))
+			slog.Info("registering this node", "nodeID", fmt.Sprintf("node/%s", GetSelf().ID()))
 
 			err := controller.deregister(context.TODO())
 			controller.err <- err
@@ -246,34 +228,20 @@ func (controller *Controller) handleAsyncUpdates() {
 	}
 }
 
-func (controller *Controller) addNode(newNode *node) {
-	controller.nodes = append(controller.nodes, newNode)
-}
-
-func (controller *Controller) updateNode(updatedNode *node) {
-	for i, n := range controller.nodes {
-		if n.ID == updatedNode.ID {
-			controller.nodes[i] = updatedNode
-			return
-		}
-	}
-
-	controller.addNode(updatedNode)
-}
-
 func (controller *Controller) sendRequestToAllOtherNodes(ctx context.Context, request *http.Request) error {
-	for _, n := range controller.nodes {
-		if n != controller.self {
-			request.URL.Host = n.Hostname
-			resp, err := executeRequest(ctx, request)
-			if err != nil {
-				return err
-			}
-			if resp.StatusCode >= 400 {
-				return fmt.Errorf("got illegal status code from upstream: %d", resp.StatusCode)
-			}
-		}
-	}
-
-	return nil
+	//for _, n := range controller.nodes {
+	//	if n != controller.self {
+	//		request.URL.Host = n.Hostname
+	//		resp, err := executeRequest(ctx, request)
+	//		if err != nil {
+	//			return err
+	//		}
+	//		if resp.StatusCode >= 400 {
+	//			return fmt.Errorf("got illegal status code from upstream: %d", resp.StatusCode)
+	//		}
+	//	}
+	//}
+	//
+	//return nil
+	panic("not implemented")
 }
