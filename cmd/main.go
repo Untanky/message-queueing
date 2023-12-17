@@ -66,7 +66,7 @@ func main() {
 	repo := queueing.NewQueueMessageRepository(storage, index)
 	repo = otel.WrapRepository(repo)
 	if *replication.Main {
-		repo = replication.WrapRepository(repo)
+		repo = replication.WrapRepository(repo, controller)
 	}
 
 	service := queueing.NewQueueService(repo, queue)

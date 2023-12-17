@@ -260,3 +260,20 @@ func (controller *Controller) updateNode(updatedNode *node) {
 
 	controller.addNode(updatedNode)
 }
+
+func (controller *Controller) sendRequestToAllOtherNodes(ctx context.Context, request *http.Request) error {
+	for _, n := range controller.nodes {
+		if n != controller.self {
+			request.URL.Host = n.Hostname
+			resp, err := executeRequest(ctx, request)
+			if err != nil {
+				return err
+			}
+			if resp.StatusCode >= 400 {
+				return fmt.Errorf("got illegal status code from upstream: %d", resp.StatusCode)
+			}
+		}
+	}
+
+	return nil
+}

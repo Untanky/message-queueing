@@ -11,14 +11,14 @@ import (
 )
 
 type repository struct {
-	wrapped queueing.Repository
-	client  *http.Client
+	wrapped    queueing.Repository
+	controller *Controller
 }
 
-func WrapRepository(repo queueing.Repository) queueing.Repository {
+func WrapRepository(repo queueing.Repository, controller *Controller) queueing.Repository {
 	return repository{
-		wrapped: repo,
-		client:  http.DefaultClient,
+		wrapped:    repo,
+		controller: controller,
 	}
 }
 
@@ -41,12 +41,9 @@ func (repo repository) syncGetByID(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	resp, err := executeRequest(ctx, req)
+	err = repo.controller.sendRequestToAllOtherNodes(ctx, req)
 	if err != nil {
 		return err
-	}
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("got illegal status code from upstream: %d", resp.StatusCode)
 	}
 
 	return nil
@@ -80,12 +77,9 @@ func (repo repository) syncCreate(ctx context.Context, message *queueing.QueueMe
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(data)))
 
-	resp, err := executeRequest(ctx, req)
+	err = repo.controller.sendRequestToAllOtherNodes(ctx, req)
 	if err != nil {
 		return err
-	}
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("got illegal status code from upstream: %d", resp.StatusCode)
 	}
 
 	return nil
@@ -124,12 +118,9 @@ func (repo repository) syncUpdate(ctx context.Context, message *queueing.QueueMe
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(data)))
 
-	resp, err := executeRequest(ctx, req)
+	err = repo.controller.sendRequestToAllOtherNodes(ctx, req)
 	if err != nil {
 		return err
-	}
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("got illegal status code from upstream: %d", resp.StatusCode)
 	}
 
 	return nil
@@ -160,12 +151,9 @@ func (repo repository) syncDelete(ctx context.Context, message *queueing.QueueMe
 		return err
 	}
 
-	resp, err := executeRequest(ctx, req)
+	err = repo.controller.sendRequestToAllOtherNodes(ctx, req)
 	if err != nil {
 		return err
-	}
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("got illegal status code from upstream: %d", resp.StatusCode)
 	}
 
 	return nil
