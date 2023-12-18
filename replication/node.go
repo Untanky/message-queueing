@@ -1,6 +1,7 @@
 package replication
 
 import (
+	"errors"
 	"github.com/google/uuid"
 )
 
@@ -53,10 +54,24 @@ func (service *nodeService) GetMain() Node {
 	}
 
 	if len(service.nodes) == 0 {
-		panic("no nodes registered")
+		return GetSelf()
 	}
 
 	return service.nodes[0]
+}
+
+type DoOperation = func(n *node, self bool, main bool) error
+
+func (service *nodeService) DoOnAll(op DoOperation) error {
+	var err error
+	for _, n := range service.nodes {
+		isSelf := n == self
+		isMain := n.Main
+
+		err = errors.Join(err, op(n, isSelf, isMain))
+	}
+
+	return err
 }
 
 func (service *nodeService) upsertNode(upsertNode *node) {

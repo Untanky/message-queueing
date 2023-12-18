@@ -129,7 +129,7 @@ func (controller *Controller) syncManifest(ctx context.Context) error {
 func (controller *Controller) getManifest(ctx context.Context) (*http2.GetManifestResponse, error) {
 	resp, err := http.Get(
 		fmt.Sprintf(
-			"http://%s:8080/internal/queues/abc/manifest", controller.nodeService.GetMain().Host(),
+			"http://%s/internal/queues/abc/manifest", controller.nodeService.GetMain().Host(),
 		),
 	)
 	if err != nil {
@@ -169,7 +169,7 @@ func (controller *Controller) syncBlob(ctx context.Context, blobID string) error
 func (controller *Controller) getBlobReader(ctx context.Context, blobID string) (io.Reader, error) {
 	resp, err := http.Get(
 		fmt.Sprintf(
-			"http://%s:8080/internal/queues/abc/blob/%s", controller.nodeService.GetMain().Host(), blobID,
+			"http://%s/internal/queues/abc/blob/%s", controller.nodeService.GetMain().Host(), blobID,
 		),
 	)
 	if err != nil {
