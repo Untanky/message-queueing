@@ -25,11 +25,12 @@ import (
 )
 
 var port = flag.Int("port", 8080, "the port of the application")
+var dataDir = flag.String("dataDir", "./data", "the directory to store the data in")
 
 func main() {
 	flag.Parse()
 
-	setupOTel()
+	//setupOTel()
 
 	etcdClient, err := clientv3.New(
 		clientv3.Config{
@@ -41,11 +42,7 @@ func main() {
 		panic(err)
 	}
 
-	controller := replication.ReplicationController{
-		EtcdClient: etcdClient,
-	}
-
-	err = controller.StartUp(context.TODO())
+	controller, err := replication.Open(context.TODO(), etcdClient, *dataDir)
 	if err != nil {
 		panic(err)
 	}
@@ -55,7 +52,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	file, err := os.OpenFile(fmt.Sprintf("data/%s", "abc"), os.O_CREATE|os.O_RDWR, 0600)
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s", *dataDir, "abc"), os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		log.Fatalf("failed to open file: %w", err)
 	}
@@ -68,6 +65,9 @@ func main() {
 
 	repo := queueing.NewQueueMessageRepository(storage, index)
 	repo = otel.WrapRepository(repo)
+	if *replication.Main {
+		repo = replication.WrapRepository(repo, controller)
+	}
 
 	service := queueing.NewQueueService(repo, queue)
 	service, err = otel.WrapService(service)
@@ -85,7 +85,7 @@ func main() {
 		os.Exit(2)
 	}(signalChannel)
 
-	handler := http.NewServer(service, storage)
+	handler := http.NewServer(service, storage, repo)
 	nethttp.Serve(lis, handler)
 }
 
