@@ -4,6 +4,39 @@ import (
 	"testing"
 )
 
+func newTestTree() *AVLTree[int, string] {
+	return &AVLTree[int, string]{
+		root: &treeNode[int, string]{
+			key:   7,
+			value: "abc",
+			left: &treeNode[int, string]{
+				key:   3,
+				value: "def",
+				left: &treeNode[int, string]{
+					key:   1,
+					value: "ghi",
+				},
+				right: &treeNode[int, string]{
+					key:   5,
+					value: "jkl",
+				},
+			},
+			right: &treeNode[int, string]{
+				key:   11,
+				value: "mno",
+				left: &treeNode[int, string]{
+					key:   9,
+					value: "pqr",
+				},
+				right: &treeNode[int, string]{
+					key:   13,
+					value: "stu",
+				},
+			},
+		},
+	}
+}
+
 func TestAVLTree_Get(t *testing.T) {
 	type kv struct {
 		key   int
@@ -39,36 +72,7 @@ func TestAVLTree_Get(t *testing.T) {
 		},
 		{
 			name: "WithBalancedFullTree",
-			tree: &AVLTree[int, string]{
-				root: &treeNode[int, string]{
-					key:   7,
-					value: "abc",
-					left: &treeNode[int, string]{
-						key:   3,
-						value: "def",
-						left: &treeNode[int, string]{
-							key:   1,
-							value: "ghi",
-						},
-						right: &treeNode[int, string]{
-							key:   5,
-							value: "jkl",
-						},
-					},
-					right: &treeNode[int, string]{
-						key:   11,
-						value: "mno",
-						left: &treeNode[int, string]{
-							key:   9,
-							value: "pqr",
-						},
-						right: &treeNode[int, string]{
-							key:   13,
-							value: "stu",
-						},
-					},
-				},
-			},
+			tree: newTestTree(),
 			kvs: []kv{
 				{
 					key:   0,
@@ -160,6 +164,36 @@ func TestAVLTree_Get(t *testing.T) {
 					if ok != kv.ok {
 						tt.Errorf("ok: expected %t; got %t", kv.ok, ok)
 					}
+				}
+			},
+		)
+	}
+}
+
+func TestAVLTree_Depth(t *testing.T) {
+	cases := []struct {
+		name        string
+		tree        *AVLTree[int, string]
+		wantedDepth int
+	}{
+		{
+			name:        "WithEmptyTree",
+			tree:        &AVLTree[int, string]{},
+			wantedDepth: 0,
+		},
+		{
+			name:        "WithBalancedFullTree",
+			tree:        newTestTree(),
+			wantedDepth: 3,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(
+			c.name, func(tt *testing.T) {
+				depth := c.tree.Depth()
+				if c.wantedDepth != depth {
+					tt.Errorf("depth: expected %d; got %d", c.wantedDepth, depth)
 				}
 			},
 		)
