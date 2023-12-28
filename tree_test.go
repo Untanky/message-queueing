@@ -14,26 +14,33 @@ func newTestTree() *AVLTree[int, string] {
 				key:   3,
 				value: "def",
 				left: &treeNode[int, string]{
-					key:   1,
-					value: "ghi",
+					key:        1,
+					value:      "ghi",
+					depthCache: 1,
 				},
 				right: &treeNode[int, string]{
-					key:   5,
-					value: "jkl",
+					key:        5,
+					value:      "jkl",
+					depthCache: 1,
 				},
+				depthCache: 2,
 			},
 			right: &treeNode[int, string]{
 				key:   11,
 				value: "mno",
 				left: &treeNode[int, string]{
-					key:   9,
-					value: "pqr",
+					key:        9,
+					value:      "pqr",
+					depthCache: 1,
 				},
 				right: &treeNode[int, string]{
-					key:   13,
-					value: "stu",
+					key:        13,
+					value:      "stu",
+					depthCache: 1,
 				},
+				depthCache: 2,
 			},
+			depthCache: 3,
 		},
 	}
 }
@@ -278,9 +285,11 @@ func TestAVLTree_Set(t *testing.T) {
 					key:   5,
 					value: "abc",
 					right: &treeNode[int, string]{
-						key:   8,
-						value: "def",
+						key:        8,
+						value:      "def",
+						depthCache: 1,
 					},
+					depthCache: 2,
 				},
 			}
 
@@ -304,9 +313,11 @@ func TestAVLTree_Set(t *testing.T) {
 					key:   5,
 					value: "abc",
 					left: &treeNode[int, string]{
-						key:   2,
-						value: "def",
+						key:        2,
+						value:      "def",
+						depthCache: 1,
 					},
+					depthCache: 2,
 				},
 			}
 
@@ -404,6 +415,7 @@ func BenchmarkAVLTree_Set(b *testing.B) {
 	tree := new(AVLTree[int32, string])
 
 	for i := 0; i < b.N; i++ {
-		tree.Set(rand.Int31(), "abc")
+		number := rand.Int31()
+		tree.Set(number, "abc")
 	}
 }

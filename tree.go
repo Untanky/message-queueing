@@ -9,9 +9,15 @@ type treeNode[Key cmp.Ordered, Value any] struct {
 	value Value
 	left  *treeNode[Key, Value]
 	right *treeNode[Key, Value]
+
+	depthCache int
 }
 
 func (node *treeNode[Key, Value]) depth() int {
+	return node.depthCache
+}
+
+func (node *treeNode[Key, Value]) calculateDepth() int {
 	depth := 1
 
 	if node.left != nil {
@@ -70,8 +76,9 @@ func (tree *AVLTree[Key, Value]) Depth() int {
 func (tree *AVLTree[Key, Value]) Set(key Key, value Value) {
 	if tree.root == nil {
 		tree.root = &treeNode[Key, Value]{
-			key:   key,
-			value: value,
+			key:        key,
+			value:      value,
+			depthCache: 1,
 		}
 		return
 	}
@@ -85,8 +92,9 @@ func (tree *AVLTree[Key, Value]) Set(key Key, value Value) {
 		if key < current.key {
 			if current.left == nil {
 				current.left = &treeNode[Key, Value]{
-					key:   key,
-					value: value,
+					key:        key,
+					value:      value,
+					depthCache: 1,
 				}
 				tree.root = rebalance(stack)
 				return
@@ -98,8 +106,9 @@ func (tree *AVLTree[Key, Value]) Set(key Key, value Value) {
 		} else {
 			if current.right == nil {
 				current.right = &treeNode[Key, Value]{
-					key:   key,
-					value: value,
+					key:        key,
+					value:      value,
+					depthCache: 1,
 				}
 				tree.root = rebalance(stack)
 				return
@@ -113,6 +122,7 @@ func rebalance[Key cmp.Ordered, Value any](stack []*treeNode[Key, Value]) *treeN
 	for i := len(stack) - 1; i >= 0; i-- {
 		node := stack[i]
 		var updateParent *treeNode[Key, Value]
+		node.depthCache = node.calculateDepth()
 		balance := node.balance()
 		if balance <= -2 {
 			if node.left.balance() <= 0 {
@@ -137,6 +147,7 @@ func rebalance[Key cmp.Ordered, Value any](stack []*treeNode[Key, Value]) *treeN
 			} else {
 				stack[i-1].right = updateParent
 			}
+			stack[i-1].depthCache = stack[i-1].calculateDepth()
 		}
 	}
 
