@@ -199,3 +199,79 @@ func TestAVLTree_Depth(t *testing.T) {
 		)
 	}
 }
+
+func TestTreeNode_Balance(t *testing.T) {
+	cases := []struct {
+		name          string
+		root          *treeNode[int, string]
+		wantedBalance int
+	}{
+		{
+			name:          "WithEmptyTree",
+			root:          &treeNode[int, string]{},
+			wantedBalance: 0,
+		},
+		{
+			name: "WithLeftHangingTree",
+			root: &treeNode[int, string]{
+				left: &treeNode[int, string]{},
+			},
+			wantedBalance: -1,
+		},
+		{
+			name: "WithRightHangingTree",
+			root: &treeNode[int, string]{
+				right: &treeNode[int, string]{},
+			},
+			wantedBalance: 1,
+		},
+		{
+			name: "WithLeftImbalancedTree",
+			root: &treeNode[int, string]{
+				left: &treeNode[int, string]{
+					left: &treeNode[int, string]{},
+				},
+			},
+			wantedBalance: -2,
+		},
+		{
+			name: "WithLeftImbalancedTree",
+			root: &treeNode[int, string]{
+				left: &treeNode[int, string]{
+					right: &treeNode[int, string]{},
+				},
+			},
+			wantedBalance: -2,
+		},
+		{
+			name: "WithLeftHangingTree",
+			root: &treeNode[int, string]{
+				left: &treeNode[int, string]{
+					right: &treeNode[int, string]{},
+				},
+				right: &treeNode[int, string]{},
+			},
+			wantedBalance: -1,
+		},
+		{
+			name: "WithRightImbalancedTree",
+			root: &treeNode[int, string]{
+				right: &treeNode[int, string]{
+					right: &treeNode[int, string]{},
+				},
+			},
+			wantedBalance: 2,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(
+			c.name, func(tt *testing.T) {
+				depth := c.root.balance()
+				if c.wantedBalance != depth {
+					tt.Errorf("depth: expected %d; got %d", c.wantedBalance, depth)
+				}
+			},
+		)
+	}
+}

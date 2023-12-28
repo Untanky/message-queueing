@@ -23,6 +23,19 @@ func (node *treeNode[Key, Value]) depth() int {
 	return depth
 }
 
+func (node *treeNode[Key, Value]) balance() int {
+	leftDepth, rightDepth := 0, 0
+
+	if node.left != nil {
+		leftDepth = node.left.depth()
+	}
+	if node.right != nil {
+		rightDepth = node.right.depth()
+	}
+
+	return rightDepth - leftDepth
+}
+
 type AVLTree[Key cmp.Ordered, Value any] struct {
 	root *treeNode[Key, Value]
 }
@@ -50,4 +63,8 @@ func (tree *AVLTree[Key, Value]) Depth() int {
 	}
 
 	return tree.root.depth()
+}
+
+func (tree *AVLTree[Key, Value]) Set(key Key, value Value) {
+	panic("not implemented")
 }
