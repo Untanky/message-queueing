@@ -200,6 +200,117 @@ func TestAVLTree_Depth(t *testing.T) {
 	}
 }
 
+func TestAVLTree_Set(t *testing.T) {
+	t.Run(
+		"NoRotation",
+		func(tt *testing.T) {
+			tree := newTestTree()
+
+			tree.Set(4, "foo")
+			if tree.root.left.right.left.value != "foo" {
+				t.Errorf("node is not at the expected location")
+			}
+		},
+	)
+
+	t.Run(
+		"WithLeftRotation",
+		func(tt *testing.T) {
+			tree := newTestTree()
+
+			tree.Set(16, "bar")
+			if tree.root.right.right.right.value != "bar" {
+				t.Errorf("node is not at the expected location")
+			}
+
+			tree.Set(17, "baz")
+			if tree.root.right.right.value != "bar" {
+				t.Errorf("node is not at the expected location")
+			}
+			if tree.root.right.right.left.value != "stu" {
+				t.Errorf("node is not at the expected location")
+			}
+			if tree.root.right.right.right.value != "baz" {
+				t.Errorf("node is not at the expected location")
+			}
+		},
+	)
+
+	t.Run(
+		"WithRightRotation", func(t *testing.T) {
+			tree := newTestTree()
+
+			tree.Set(0, "bar")
+			if tree.root.left.left.left.value != "bar" {
+				t.Errorf("node is not at the expected location")
+			}
+
+			tree.Set(-1, "baz")
+			if tree.root.left.left.value != "bar" {
+				t.Errorf("node is not at the expected location")
+			}
+			if tree.root.left.left.right.value != "ghi" {
+				t.Errorf("node is not at the expected location")
+			}
+			if tree.root.left.left.left.value != "baz" {
+				t.Errorf("node is not at the expected location")
+			}
+		},
+	)
+
+	t.Run(
+		"WithRightLeftRotation", func(tt *testing.T) {
+			tree := &AVLTree[int, string]{
+				root: &treeNode[int, string]{
+					key:   5,
+					value: "abc",
+					right: &treeNode[int, string]{
+						key:   8,
+						value: "def",
+					},
+				},
+			}
+
+			tree.Set(7, "bar")
+			if tree.root.left.value != "abc" {
+				t.Errorf("node is not at the expected location")
+			}
+			if tree.root.right.value != "def" {
+				t.Errorf("node is not at the expected location")
+			}
+			if tree.root.value != "bar" {
+				t.Errorf("node is not at the expected location")
+			}
+		},
+	)
+
+	t.Run(
+		"WithLeftRightRotation", func(tt *testing.T) {
+			tree := &AVLTree[int, string]{
+				root: &treeNode[int, string]{
+					key:   5,
+					value: "abc",
+					left: &treeNode[int, string]{
+						key:   2,
+						value: "def",
+					},
+				},
+			}
+
+			tree.Set(3, "bar")
+			if tree.root.right.value != "abc" {
+				t.Errorf("node is not at the expected location")
+			}
+			if tree.root.left.value != "def" {
+				t.Errorf("node is not at the expected location")
+			}
+			if tree.root.value != "bar" {
+				t.Errorf("node is not at the expected location")
+			}
+		},
+	)
+}
+
 func TestTreeNode_Balance(t *testing.T) {
 	cases := []struct {
 		name          string
