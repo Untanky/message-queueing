@@ -1,6 +1,7 @@
 package queueing
 
 import (
+	"math/rand"
 	"testing"
 )
 
@@ -202,6 +203,18 @@ func TestAVLTree_Depth(t *testing.T) {
 
 func TestAVLTree_Set(t *testing.T) {
 	t.Run(
+		"EmptyTree",
+		func(tt *testing.T) {
+			tree := new(AVLTree[int, string])
+
+			tree.Set(4, "foo")
+			if tree.root.value != "foo" {
+				t.Errorf("node is not at the expected location")
+			}
+		},
+	)
+
+	t.Run(
 		"NoRotation",
 		func(tt *testing.T) {
 			tree := newTestTree()
@@ -384,5 +397,13 @@ func TestTreeNode_Balance(t *testing.T) {
 				}
 			},
 		)
+	}
+}
+
+func BenchmarkAVLTree_Set(b *testing.B) {
+	tree := new(AVLTree[int32, string])
+
+	for i := 0; i < b.N; i++ {
+		tree.Set(rand.Int31(), "abc")
 	}
 }

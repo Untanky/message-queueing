@@ -68,9 +68,17 @@ func (tree *AVLTree[Key, Value]) Depth() int {
 }
 
 func (tree *AVLTree[Key, Value]) Set(key Key, value Value) {
-	stack := make([]*treeNode[Key, Value], 0, tree.root.depth())
+	if tree.root == nil {
+		tree.root = &treeNode[Key, Value]{
+			key:   key,
+			value: value,
+		}
+		return
+	}
+
 	current := tree.root
 
+	stack := make([]*treeNode[Key, Value], 0, tree.root.depth())
 	for current != nil {
 		stack = append(stack, current)
 
