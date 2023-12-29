@@ -5,12 +5,11 @@ import (
 )
 
 type treeNode[Key cmp.Ordered, Value any] struct {
-	key   Key
-	value Value
-	left  *treeNode[Key, Value]
-	right *treeNode[Key, Value]
-
 	depthCache int
+	left       *treeNode[Key, Value]
+	right      *treeNode[Key, Value]
+	key        Key
+	value      Value
 }
 
 func (node *treeNode[Key, Value]) depth() int {
@@ -74,48 +73,46 @@ func (tree *AVLTree[Key, Value]) Depth() int {
 }
 
 func (tree *AVLTree[Key, Value]) Set(key Key, value Value) {
+	node := &treeNode[Key, Value]{
+		key:        key,
+		value:      value,
+		depthCache: 1,
+	}
+
 	if tree.root == nil {
-		tree.root = &treeNode[Key, Value]{
-			key:        key,
-			value:      value,
-			depthCache: 1,
-		}
+		tree.root = node
 		return
 	}
 
-	current := tree.root
+	tree.root = insert(tree.root, node)
+}
 
-	stack := make([]*treeNode[Key, Value], 0, tree.root.depth())
+func insert[Key cmp.Ordered, Value any](root *treeNode[Key, Value], node *treeNode[Key, Value]) *treeNode[Key, Value] {
+	current := root
+
+	stack := make([]*treeNode[Key, Value], 0, root.depth())
 	for current != nil {
 		stack = append(stack, current)
 
-		if key < current.key {
+		if node.key < current.key {
 			if current.left == nil {
-				current.left = &treeNode[Key, Value]{
-					key:        key,
-					value:      value,
-					depthCache: 1,
-				}
-				tree.root = rebalance(stack)
-				return
+				current.left = node
+				return rebalance(stack)
 			}
 			current = current.left
-		} else if current.key == key {
-			current.value = value
-			return
+		} else if current.key == node.key {
+			current.value = node.value
+			return root
 		} else {
 			if current.right == nil {
-				current.right = &treeNode[Key, Value]{
-					key:        key,
-					value:      value,
-					depthCache: 1,
-				}
-				tree.root = rebalance(stack)
-				return
+				current.right = node
+				return rebalance(stack)
 			}
 			current = current.right
 		}
 	}
+
+	return root
 }
 
 func rebalance[Key cmp.Ordered, Value any](stack []*treeNode[Key, Value]) *treeNode[Key, Value] {

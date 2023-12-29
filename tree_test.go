@@ -349,14 +349,20 @@ func TestTreeNode_Balance(t *testing.T) {
 		{
 			name: "WithLeftHangingTree",
 			root: &treeNode[int, string]{
-				left: &treeNode[int, string]{},
+				left: &treeNode[int, string]{
+					depthCache: 1,
+				},
+				depthCache: 2,
 			},
 			wantedBalance: -1,
 		},
 		{
 			name: "WithRightHangingTree",
 			root: &treeNode[int, string]{
-				right: &treeNode[int, string]{},
+				right: &treeNode[int, string]{
+					depthCache: 1,
+				},
+				depthCache: 2,
 			},
 			wantedBalance: 1,
 		},
@@ -364,8 +370,12 @@ func TestTreeNode_Balance(t *testing.T) {
 			name: "WithLeftImbalancedTree",
 			root: &treeNode[int, string]{
 				left: &treeNode[int, string]{
-					left: &treeNode[int, string]{},
+					left: &treeNode[int, string]{
+						depthCache: 1,
+					},
+					depthCache: 2,
 				},
+				depthCache: 3,
 			},
 			wantedBalance: -2,
 		},
@@ -373,8 +383,12 @@ func TestTreeNode_Balance(t *testing.T) {
 			name: "WithLeftImbalancedTree",
 			root: &treeNode[int, string]{
 				left: &treeNode[int, string]{
-					right: &treeNode[int, string]{},
+					right: &treeNode[int, string]{
+						depthCache: 1,
+					},
+					depthCache: 2,
 				},
+				depthCache: 3,
 			},
 			wantedBalance: -2,
 		},
@@ -382,9 +396,15 @@ func TestTreeNode_Balance(t *testing.T) {
 			name: "WithLeftHangingTree",
 			root: &treeNode[int, string]{
 				left: &treeNode[int, string]{
-					right: &treeNode[int, string]{},
+					right: &treeNode[int, string]{
+						depthCache: 1,
+					},
+					depthCache: 2,
 				},
-				right: &treeNode[int, string]{},
+				right: &treeNode[int, string]{
+					depthCache: 1,
+				},
+				depthCache: 3,
 			},
 			wantedBalance: -1,
 		},
@@ -392,8 +412,12 @@ func TestTreeNode_Balance(t *testing.T) {
 			name: "WithRightImbalancedTree",
 			root: &treeNode[int, string]{
 				right: &treeNode[int, string]{
-					right: &treeNode[int, string]{},
+					right: &treeNode[int, string]{
+						depthCache: 1,
+					},
+					depthCache: 2,
 				},
+				depthCache: 3,
 			},
 			wantedBalance: 2,
 		},
