@@ -147,7 +147,6 @@ func rebalance[Key cmp.Ordered, Value any](stack []*treeNode[Key, Value]) *treeN
 			} else {
 				stack[i-1].right = updateParent
 			}
-			stack[i-1].depthCache = stack[i-1].calculateDepth()
 		}
 	}
 
