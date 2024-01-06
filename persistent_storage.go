@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"io"
 )
 
 type Store[Key cmp.Ordered, Value any] interface {
@@ -24,7 +25,7 @@ type MemTable[Key cmp.Ordered, Value any] interface {
 }
 
 type TableHandler[Key cmp.Ordered, Value any] struct {
-	tables []SSTable[Key, Value]
+	tables []*SSTable[Key, Value]
 }
 
 func (handler *TableHandler[Key, Value]) CreateTable(ctx context.Context, iterator Iterator[Value]) error {
@@ -55,37 +56,86 @@ func (handler *TableHandler[Key, Value]) Compact(ctx context.Context) {
 	panic("not implemented")
 }
 
-type SSTable[Key cmp.Ordered, Value any] interface {
-	Get(context.Context, Key) (Value, error)
-	Compact(context.Context, SSTable[Key, Value]) (SSTable[Key, Value], error)
+const ssTablePageSize = 64 * 1024
+
+type pageSpan[Key cmp.Ordered] struct {
+	startKey Key
+	endKey   Key
+	offset   int64
 }
 
-func SSTableFrom[Key cmp.Ordered, Value any](iterator Iterator[Value]) SSTable[Key, Value] {
+type SSTable[Key cmp.Ordered, Value any] struct {
+	reader io.ReadSeekCloser
+	spans  []pageSpan[Key]
+}
+
+func SSTableFrom[Key cmp.Ordered, Value any](iterator Iterator[Value]) *SSTable[Key, Value] {
+	// TODO: implement
+	panic("not implemented")
+}
+
+func (table *SSTable[Key, Value]) findPageSpan(key Key) (pageSpan[Key], bool) {
+	spanSlice := table.spans
+
+	for len(spanSlice) > 1 {
+		i := len(spanSlice) / 2
+		if spanSlice[i].startKey > key {
+			spanSlice = spanSlice[:i]
+		} else if spanSlice[i].endKey < key {
+			spanSlice = spanSlice[i+1:]
+		} else {
+			return spanSlice[i], true
+		}
+	}
+
+	if spanSlice[0].startKey <= key && spanSlice[0].endKey <= key {
+		return spanSlice[0], true
+	}
+
+	return pageSpan[Key]{}, false
+}
+
+func (table *SSTable[Key, Value]) findInPage(pageSpan pageSpan[Key]) (Value, error) {
+	// TODO: implement
+	panic("not implemented")
+}
+
+func (table *SSTable[Key, Value]) Get(ctx context.Context, key Key) (Value, error) {
+	span, ok := table.findPageSpan(key)
+	if !ok {
+		var noop Value
+		return noop, errors.New("no span contains key")
+	}
+
+	return table.findInPage(span)
+}
+
+func (table *SSTable[Key, Value]) Compact(context.Context, SSTable[Key, Value]) (SSTable[Key, Value], error) {
 	// TODO: implement
 	panic("not implemented")
 }
 
 type StorageEngine[Key cmp.Ordered, Value any] struct {
-	memtable     MemTable[Key, Value]
-	tablehandler TableHandler[Key, Value]
+	memTable     MemTable[Key, Value]
+	tableHandler TableHandler[Key, Value]
 }
 
 func (engine *StorageEngine[Key, Value]) Get(ctx context.Context, key Key) (Value, error) {
-	value, ok := engine.memtable.Get(key)
+	value, ok := engine.memTable.Get(key)
 	if ok {
 		return value, nil
 	}
 
-	return engine.tablehandler.Get(ctx, key)
+	return engine.tableHandler.Get(ctx, key)
 }
 
 func (engine *StorageEngine[Key, Value]) Set(ctx context.Context, key Key, value Value) error {
-	engine.memtable.Set(key, value)
+	engine.memTable.Set(key, value)
 	return nil
 }
 
 func (engine *StorageEngine[Key, Value]) Delete(ctx context.Context, key Key) (Value, error) {
-	value, ok := engine.memtable.Delete(key)
+	value, ok := engine.memTable.Delete(key)
 	if ok {
 		return value, nil
 	}
