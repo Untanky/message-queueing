@@ -173,3 +173,8 @@ func rotateLeftRight[Key cmp.Ordered, Value any](node *treeNode[Key, Value]) *tr
 	node.left = rotateLeft(node.left)
 	return rotateRight(node)
 }
+
+func (tree *AVLTree[Key, Value]) Delete(key Key) (Value, bool) {
+	// TODO: implement
+	panic("not implemented")
+}
