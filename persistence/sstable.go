@@ -3,7 +3,6 @@ package persistence
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"io"
 	"time"
@@ -108,7 +107,7 @@ type ReadWriteSeekCloser interface {
 }
 
 type pageSpan struct {
-	offset   int64
+	offset   uint64
 	startKey uuid.UUID
 	endKey   uuid.UUID
 }
@@ -120,10 +119,22 @@ type pageHeader struct {
 	indexBytes uint32
 }
 
+func (header *pageHeader) Marshal() ([]byte, error) {
+	data := make([]byte, 0, headerSize)
+
+	data = byteOrder.AppendUint64(data, header.offset)
+	data = append(data, header.startKey[:]...)
+	data = append(data, header.endKey[:]...)
+	data = byteOrder.AppendUint32(data, header.rows)
+	data = byteOrder.AppendUint32(data, header.rowBytes)
+	data = byteOrder.AppendUint32(data, header.indexBytes)
+
+	return data, nil
+}
+
 var byteOrder = binary.BigEndian
 
 const (
-	pageVersion    = 1
 	pageSize       = 16 * 1024
 	headerSize     = 64
 	indexEntrySize = 20
@@ -151,14 +162,15 @@ func writePage(data *[pageSize]byte, iterator Iterator[Row]) pageSpan {
 		header.endKey = value.Key
 		header.rows += 1
 	}
-	fmt.Println(data)
 
 	copy(data[pageSize-len(index):], index)
 
 	header.rowBytes = uint32(offset - headerSize)
 	header.indexBytes = uint32(len(index))
 
-	// TODO: write header
+	headerBytes, _ := header.Marshal()
+
+	copy(data[0:headerSize], headerBytes)
 
 	return header.pageSpan
 }
