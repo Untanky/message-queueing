@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"io"
 	"message-queueing/persistence"
+	"os"
 	"testing"
 )
 
@@ -68,9 +69,9 @@ func (it *trueIterator) HasNext() bool {
 }
 
 func TestSSTableFromIterator(t *testing.T) {
-	sliceIO := &sliceReadWriteSeeker{}
+	file, _ := os.OpenFile("test.data", os.O_CREATE|os.O_RDWR, 0600)
 
-	table, err := persistence.SSTableFromIterator(sliceIO, &trueIterator{})
+	table, err := persistence.SSTableFromIterator(file, &trueIterator{})
 
 	if err != nil {
 		t.Errorf("err: expected: nil, got %v", err)

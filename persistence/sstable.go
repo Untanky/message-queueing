@@ -54,7 +54,7 @@ func (row *Row) Marshal() ([]byte, error) {
 	if row.DeletedAt != nil {
 		data := make([]byte, 0, 9)
 		data = append(data, 0)
-		data = byteOrder.AppendUint64(data, uint64(row.DeletedAt.UnixMilli()))
+		data = binary.AppendUvarint(data, uint64(row.DeletedAt.UnixMilli()))
 		return data, nil
 	}
 
@@ -62,14 +62,14 @@ func (row *Row) Marshal() ([]byte, error) {
 
 	data = append(data, 0)
 	if row.RetrieveInfo != nil {
-		data = byteOrder.AppendUint32(data, row.RetrieveInfo.retrieved)
-		data = byteOrder.AppendUint64(data, uint64(row.RetrieveInfo.lastRetrievedAt.UnixMilli()))
+		data = binary.AppendUvarint(data, uint64(row.RetrieveInfo.retrieved))
+		data = binary.AppendUvarint(data, uint64(row.RetrieveInfo.lastRetrievedAt.UnixMilli()))
 	}
 	if row.DeadLetterQueueInfo != nil {
-		data = byteOrder.AppendUint64(data, uint64(row.DeadLetterQueueInfo.movedAt.UnixMilli()))
+		data = binary.AppendUvarint(data, uint64(row.DeadLetterQueueInfo.movedAt.UnixMilli()))
 		data = append(data, row.DeadLetterQueueInfo.originQueue[:]...)
 	}
-	data = byteOrder.AppendUint64(data, uint64(len(row.Value)))
+	data = binary.AppendUvarint(data, uint64(len(row.Value)))
 	data = append(data, row.Value...)
 	return data, nil
 }
@@ -87,7 +87,7 @@ func (row *Row) writeTo(dest []byte, offset uint32) (int, []byte, error) {
 	n := copy(dest, valueBytes)
 	index := make([]byte, 0, 20)
 	index = append(index, row.Key[:]...)
-	index = byteOrder.AppendUint32(index, offset)
+	index = binary.AppendUvarint(index, uint64(offset))
 
 	return n, index, nil
 }
