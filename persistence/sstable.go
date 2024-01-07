@@ -16,20 +16,12 @@ type BinaryUnmarshaler interface {
 	Unmarshal([]byte) error
 }
 
-/*
-RowFlag encodes binary information about the row
-
-- 0x01 - end of page content
-
-- 0x02 - deletion marker
-
-- 0x04 - retrieved marker
-
-- 0x08 - dead letter queue marker
-
-- 0x10-0x80 - undefined
-*/
-type RowFlag byte
+const (
+	endOfPage = 0x01
+	deleted   = 0x02
+	retrieved = 0x04
+	dlq       = 0x08
+)
 
 type RetrieveInfo struct {
 	retrieved       uint32
@@ -52,7 +44,7 @@ type Row struct {
 func (row *Row) Marshal() ([]byte, error) {
 	if row.DeletedAt != nil {
 		data := make([]byte, 0, 9)
-		data = append(data, 0)
+		data = append(data, byte(deleted))
 		data = binary.AppendUvarint(data, uint64(row.DeletedAt.UnixMilli()))
 		return data, nil
 	}
@@ -61,10 +53,12 @@ func (row *Row) Marshal() ([]byte, error) {
 
 	data = append(data, 0)
 	if row.RetrieveInfo != nil {
+		data[0] |= byte(retrieved)
 		data = binary.AppendUvarint(data, uint64(row.RetrieveInfo.retrieved))
 		data = binary.AppendUvarint(data, uint64(row.RetrieveInfo.lastRetrievedAt.UnixMilli()))
 	}
 	if row.DeadLetterQueueInfo != nil {
+		data[0] |= byte(dlq)
 		data = binary.AppendUvarint(data, uint64(row.DeadLetterQueueInfo.movedAt.UnixMilli()))
 		data = append(data, row.DeadLetterQueueInfo.originQueue[:]...)
 	}
@@ -143,6 +137,7 @@ const (
 func writePage(data *[pageSize]byte, iterator Iterator[Row]) pageSpan {
 	index := make([]byte, 0, 64*indexEntrySize)
 	offset := headerSize
+	lastFlagOffset := headerSize
 
 	header := pageHeader{}
 
@@ -153,6 +148,7 @@ func writePage(data *[pageSize]byte, iterator Iterator[Row]) pageSpan {
 		if err != nil {
 			break
 		}
+		lastFlagOffset = offset
 		offset += n
 		index = append(index, indexAppend...)
 
@@ -163,6 +159,7 @@ func writePage(data *[pageSize]byte, iterator Iterator[Row]) pageSpan {
 		header.rows += 1
 	}
 
+	data[lastFlagOffset] |= endOfPage
 	copy(data[pageSize-len(index):], index)
 
 	header.rowBytes = uint32(offset - headerSize)
