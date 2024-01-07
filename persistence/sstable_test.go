@@ -5,7 +5,6 @@ import (
 	"github.com/google/uuid"
 	"io"
 	"message-queueing/persistence"
-	"os"
 	"testing"
 )
 
@@ -57,10 +56,10 @@ func (hw helloWorld) Marshal() ([]byte, error) {
 
 type trueIterator struct{}
 
-func (it *trueIterator) Next() persistence.KeyValue {
-	return persistence.KeyValue{
+func (it *trueIterator) Next() persistence.Row {
+	return persistence.Row{
 		Key:   uuid.New(),
-		Value: helloWorld{},
+		Value: []byte("Hello World! SSTable are amazing and work well for Key-Value-Database"),
 	}
 }
 
@@ -69,9 +68,9 @@ func (it *trueIterator) HasNext() bool {
 }
 
 func TestSSTableFromIterator(t *testing.T) {
-	file, _ := os.OpenFile("test.data", os.O_CREATE|os.O_RDWR, 0600)
+	sliceIO := &sliceReadWriteSeeker{}
 
-	table, err := persistence.SSTableFromIterator(file, &trueIterator{})
+	table, err := persistence.SSTableFromIterator(sliceIO, &trueIterator{})
 
 	if err != nil {
 		t.Errorf("err: expected: nil, got %v", err)

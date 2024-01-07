@@ -2,8 +2,11 @@ package persistence
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"io"
+	"time"
 )
 
 type BinaryMarshaler interface {
@@ -12,6 +15,81 @@ type BinaryMarshaler interface {
 
 type BinaryUnmarshaler interface {
 	Unmarshal([]byte) error
+}
+
+/*
+RowFlag encodes binary information about the row
+
+- 0x01 - end of page content
+
+- 0x02 - deletion marker
+
+- 0x04 - retrieved marker
+
+- 0x08 - dead letter queue marker
+
+- 0x10-0x80 - undefined
+*/
+type RowFlag byte
+
+type RetrieveInfo struct {
+	retrieved       uint32
+	lastRetrievedAt time.Time
+}
+
+type DeadLetterQueueInfo struct {
+	movedAt     time.Time
+	originQueue [16]byte
+}
+
+type Row struct {
+	Key                 uuid.UUID
+	DeletedAt           *time.Time
+	RetrieveInfo        *RetrieveInfo
+	DeadLetterQueueInfo *DeadLetterQueueInfo
+	Value               []byte
+}
+
+func (row *Row) Marshal() ([]byte, error) {
+	if row.DeletedAt != nil {
+		data := make([]byte, 0, 9)
+		data = append(data, 0)
+		data = byteOrder.AppendUint64(data, uint64(row.DeletedAt.UnixMilli()))
+		return data, nil
+	}
+
+	data := make([]byte, 0, len(row.Value)+45)
+
+	data = append(data, 0)
+	if row.RetrieveInfo != nil {
+		data = byteOrder.AppendUint32(data, row.RetrieveInfo.retrieved)
+		data = byteOrder.AppendUint64(data, uint64(row.RetrieveInfo.lastRetrievedAt.UnixMilli()))
+	}
+	if row.DeadLetterQueueInfo != nil {
+		data = byteOrder.AppendUint64(data, uint64(row.DeadLetterQueueInfo.movedAt.UnixMilli()))
+		data = append(data, row.DeadLetterQueueInfo.originQueue[:]...)
+	}
+	data = byteOrder.AppendUint64(data, uint64(len(row.Value)))
+	data = append(data, row.Value...)
+	return data, nil
+}
+
+func (row *Row) writeTo(dest []byte, offset uint32) (int, []byte, error) {
+	valueBytes, err := row.Marshal()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	if len(valueBytes)+indexEntrySize > len(dest) {
+		return 0, nil, errors.New("not enough space")
+	}
+
+	n := copy(dest, valueBytes)
+	index := make([]byte, 0, 20)
+	index = append(index, row.Key[:]...)
+	index = byteOrder.AppendUint32(index, offset)
+
+	return n, index, nil
 }
 
 type Iterator[Value any] interface {
@@ -42,11 +120,6 @@ type pageHeader struct {
 	indexBytes uint32
 }
 
-type KeyValue struct {
-	Key   uuid.UUID
-	Value BinaryMarshaler
-}
-
 var byteOrder = binary.BigEndian
 
 const (
@@ -56,8 +129,8 @@ const (
 	indexEntrySize = 20
 )
 
-func writePage(data *[pageSize]byte, iterator Iterator[KeyValue]) pageSpan {
-	index := make([]byte, 64*indexEntrySize)
+func writePage(data *[pageSize]byte, iterator Iterator[Row]) pageSpan {
+	index := make([]byte, 0, 64*indexEntrySize)
 	offset := headerSize
 
 	header := pageHeader{}
@@ -65,27 +138,20 @@ func writePage(data *[pageSize]byte, iterator Iterator[KeyValue]) pageSpan {
 	for iterator.HasNext() && offset+len(index) < pageSize {
 		value := iterator.Next()
 
-		valueBytes, err := value.Value.Marshal()
+		n, indexAppend, err := value.writeTo(data[offset:pageSize-len(index)], uint32(offset))
 		if err != nil {
-			// TODO: error handling
-			continue
-		}
-
-		if len(valueBytes)+offset+len(index)+indexEntrySize > pageSize {
 			break
 		}
+		offset += n
+		index = append(index, indexAppend...)
 
 		if header.rows == 0 {
 			header.startKey = value.Key
 		}
 		header.endKey = value.Key
 		header.rows += 1
-
-		copy(data[offset:], valueBytes)
-		index = append(index, value.Key[:]...)
-		index = byteOrder.AppendUint32(index, uint32(offset))
-		offset += len(valueBytes)
 	}
+	fmt.Println(data)
 
 	copy(data[pageSize-len(index):], index)
 
@@ -97,7 +163,7 @@ func writePage(data *[pageSize]byte, iterator Iterator[KeyValue]) pageSpan {
 	return header.pageSpan
 }
 
-func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[KeyValue]) (*SSTable, error) {
+func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[Row]) (*SSTable, error) {
 	pageBytes := [pageSize]byte{}
 	writePage(&pageBytes, data)
 	_, err := handler.Write(pageBytes[:])
