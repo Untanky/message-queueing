@@ -17,10 +17,10 @@ type BinaryUnmarshaler interface {
 }
 
 const (
-	endOfPage = 0x01
-	deleted   = 0x02
-	retrieved = 0x04
-	dlq       = 0x08
+	endOfPage = byte(0x01)
+	deleted   = byte(0x02)
+	retrieved = byte(0x04)
+	dlq       = byte(0x08)
 )
 
 type RetrieveInfo struct {
@@ -44,7 +44,7 @@ type Row struct {
 func (row *Row) Marshal() ([]byte, error) {
 	if row.DeletedAt != nil {
 		data := make([]byte, 0, 9)
-		data = append(data, byte(deleted))
+		data = append(data, deleted)
 		data = binary.AppendUvarint(data, uint64(row.DeletedAt.UnixMilli()))
 		return data, nil
 	}
@@ -53,12 +53,12 @@ func (row *Row) Marshal() ([]byte, error) {
 
 	data = append(data, 0)
 	if row.RetrieveInfo != nil {
-		data[0] |= byte(retrieved)
+		data[0] |= retrieved
 		data = binary.AppendUvarint(data, uint64(row.RetrieveInfo.retrieved))
 		data = binary.AppendUvarint(data, uint64(row.RetrieveInfo.lastRetrievedAt.UnixMilli()))
 	}
 	if row.DeadLetterQueueInfo != nil {
-		data[0] |= byte(dlq)
+		data[0] |= dlq
 		data = binary.AppendUvarint(data, uint64(row.DeadLetterQueueInfo.movedAt.UnixMilli()))
 		data = append(data, row.DeadLetterQueueInfo.originQueue[:]...)
 	}
@@ -73,7 +73,7 @@ func (row *Row) writeTo(dest []byte, offset uint32) (int, []byte, error) {
 		return 0, nil, err
 	}
 
-	if len(valueBytes)+indexEntrySize > len(dest) {
+	if len(valueBytes)+indexEntrySize+1 > len(dest) {
 		return 0, nil, errors.New("not enough space")
 	}
 
@@ -137,7 +137,6 @@ const (
 func writePage(data *[pageSize]byte, iterator Iterator[Row]) pageSpan {
 	index := make([]byte, 0, 64*indexEntrySize)
 	offset := headerSize
-	lastFlagOffset := headerSize
 
 	header := pageHeader{}
 
@@ -148,7 +147,6 @@ func writePage(data *[pageSize]byte, iterator Iterator[Row]) pageSpan {
 		if err != nil {
 			break
 		}
-		lastFlagOffset = offset
 		offset += n
 		index = append(index, indexAppend...)
 
@@ -159,10 +157,10 @@ func writePage(data *[pageSize]byte, iterator Iterator[Row]) pageSpan {
 		header.rows += 1
 	}
 
-	data[lastFlagOffset] |= endOfPage
+	data[offset] = endOfPage
 	copy(data[pageSize-len(index):], index)
 
-	header.rowBytes = uint32(offset - headerSize)
+	header.rowBytes = uint32(offset - headerSize + 1)
 	header.indexBytes = uint32(len(index))
 
 	headerBytes, _ := header.Marshal()
