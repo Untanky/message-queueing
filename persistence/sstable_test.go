@@ -1,9 +1,12 @@
 package persistence_test
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"github.com/google/uuid"
 	"io"
+	"math/rand"
 	"message-queueing/persistence"
 	"os"
 	"testing"
@@ -49,15 +52,10 @@ func (s *sliceReadWriteSeeker) Close() error {
 	return nil
 }
 
-type helloWorld struct{}
-
-func (hw helloWorld) Marshal() ([]byte, error) {
-	return []byte("Hello World"), nil
-}
-
 type trueIterator struct{}
 
 func (it *trueIterator) Next() persistence.Row {
+	uuid.SetRand(rand.New(rand.NewSource(10)))
 	return persistence.Row{
 		Key:   uuid.New(),
 		Value: []byte("Hello World! SSTable are amazing and work well for Key-Value-Database"),
@@ -69,14 +67,29 @@ func (it *trueIterator) HasNext() bool {
 }
 
 func TestSSTableFromIterator(t *testing.T) {
-	file, _ := os.OpenFile("test.data", os.O_CREATE|os.O_RDWR, 0600)
+	sliceIO := &sliceReadWriteSeeker{}
 
-	table, err := persistence.SSTableFromIterator(file, &trueIterator{})
+	table, err := persistence.SSTableFromIterator(sliceIO, &trueIterator{})
 
 	if err != nil {
 		t.Errorf("err: expected: nil, got %v", err)
 	}
 	if table == nil {
 		t.Errorf("table: expected not nil; got %v", table)
+	}
+
+	hash := sha256.New()
+	hash.Write(sliceIO.data)
+	hashBytes := hash.Sum(nil)
+
+	hashBase64 := base64.StdEncoding.EncodeToString(hashBytes)
+
+	file, _ := os.OpenFile("fromIteratorHash.sha256", os.O_RDONLY, 0600)
+	fileBytes := make([]byte, 32)
+	file.Read(fileBytes)
+	expectedBase64 := base64.StdEncoding.EncodeToString(fileBytes)
+
+	if hashBase64 != expectedBase64 {
+		t.Errorf("hashBytes: expected %v; got %v", expectedBase64, hashBase64)
 	}
 }
