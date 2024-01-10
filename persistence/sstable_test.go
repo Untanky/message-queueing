@@ -55,9 +55,9 @@ func (s *sliceReadWriteSeeker) Close() error {
 type trueIterator struct{}
 
 func (it *trueIterator) Next() persistence.Row {
-	uuid.SetRand(rand.New(rand.NewSource(10)))
+	id := uuid.New()
 	return persistence.Row{
-		Key:   uuid.New(),
+		Key:   id[:],
 		Value: []byte("Hello World! SSTable are amazing and work well for Key-Value-Database"),
 	}
 }
@@ -68,6 +68,7 @@ func (it *trueIterator) HasNext() bool {
 
 func TestSSTableFromIterator(t *testing.T) {
 	sliceIO := &sliceReadWriteSeeker{}
+	uuid.SetRand(rand.New(rand.NewSource(10)))
 
 	table, err := persistence.SSTableFromIterator(sliceIO, &trueIterator{})
 

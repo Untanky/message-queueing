@@ -1,7 +1,6 @@
 package persistence
 
 import (
-	"github.com/google/uuid"
 	"io"
 )
 
@@ -48,7 +47,7 @@ func (page *dataPage) addRow(row Row) bool {
 	return true
 }
 
-func (page *dataPage) get(key uuid.UUID) (Row, bool) {
+func (page *dataPage) get(key []byte) (Row, bool) {
 	if !page.getPageSpan().containsKey(key) {
 		return Row{}, false
 	}
@@ -99,7 +98,7 @@ func (page *dataPage) WriteTo(writer io.Writer) (int64, error) {
 	copy(data[:headerSize], headerBytes)
 
 	rowOffset := headerSize
-	indexOffset := uint64(pageSize - header.indexBytes - 1)
+	indexOffset := pageSize - header.indexBytes - 1
 	for _, row := range page.rows {
 		rowBytes, _ := row.Marshal()
 		copy(data[rowOffset:], rowBytes)

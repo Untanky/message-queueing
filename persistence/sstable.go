@@ -3,7 +3,6 @@ package persistence
 import (
 	"encoding/binary"
 	"errors"
-	"github.com/google/uuid"
 	"io"
 	"time"
 )
@@ -32,7 +31,7 @@ type DeadLetterQueueInfo struct {
 }
 
 type Row struct {
-	Key                 uuid.UUID
+	Key                 []byte
 	DeletedAt           *time.Time
 	RetrieveInfo        *RetrieveInfo
 	DeadLetterQueueInfo *DeadLetterQueueInfo
@@ -118,21 +117,22 @@ type ReadWriteSeekCloser interface {
 }
 
 type pageSpan struct {
-	startKey uuid.UUID
-	endKey   uuid.UUID
+	startKey []byte
+	endKey   []byte
 }
 
-func compareUUID(a, b uuid.UUID) byte {
-	for i := 0; i < 16; i++ {
+func compareUUID(a, b []byte) byte {
+	l := min(len(a), len(b))
+	for i := 0; i < l; i++ {
 		if a[i] != b[i] {
 			return a[i] - b[i]
 		}
 	}
 
-	return 0
+	return byte(len(a) - len(b))
 }
 
-func (span pageSpan) containsKey(key uuid.UUID) bool {
+func (span pageSpan) containsKey(key []byte) bool {
 	return compareUUID(key, span.startKey) > 0 && compareUUID(key, span.endKey) < 0
 }
 
