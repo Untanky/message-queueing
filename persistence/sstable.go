@@ -118,7 +118,13 @@ func (span pageSpan) containsKey(key []byte) bool {
 }
 
 func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[Row]) (*SSTable, error) {
+	header := new(tableHeader)
 	page := newDataPage()
+
+	offset, err := handler.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
 
 	for data.HasNext() {
 		ok := page.addRow(data.Next())
@@ -127,10 +133,12 @@ func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[Row]) (*SSTa
 		}
 	}
 
-	_, err := page.WriteTo(handler)
+	_, err = page.WriteTo(handler)
 	if err != nil {
 		return nil, err
 	}
+
+	header.addPage(pageSpanWithOffset{offset: uint64(offset), pageSpan: page.getPageSpan()})
 
 	return &SSTable{}, nil
 }
