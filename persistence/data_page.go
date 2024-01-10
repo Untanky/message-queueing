@@ -35,7 +35,7 @@ func newDataPage() *dataPage {
 }
 
 func (page *dataPage) addRow(row Row) bool {
-	availableBytes := uint64(pageSize-headerSize-indexEntrySize*uint64(len(page.rows))-1) - page.writtenBytes
+	availableBytes := pageSize - headerSize - indexEntrySize*uint64(len(page.rows)) - 1 - page.writtenBytes
 	rowBytes := row.getByteCount()
 
 	if availableBytes < rowBytes {

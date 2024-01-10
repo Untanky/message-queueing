@@ -2,7 +2,6 @@ package persistence
 
 import (
 	"encoding/binary"
-	"errors"
 	"io"
 	"time"
 )
@@ -81,24 +80,6 @@ func (row *Row) Marshal() ([]byte, error) {
 	data = byteOrder.AppendUint64(data, uint64(len(row.Value)))
 	data = append(data, row.Value...)
 	return data, nil
-}
-
-func (row *Row) writeTo(dest []byte, offset uint32) (int, []byte, error) {
-	valueBytes, err := row.Marshal()
-	if err != nil {
-		return 0, nil, err
-	}
-
-	if uint64(len(valueBytes))+indexEntrySize+1 > uint64(len(dest)) {
-		return 0, nil, errors.New("not enough space")
-	}
-
-	n := copy(dest, valueBytes)
-	index := make([]byte, 0, 20)
-	index = append(index, row.Key[:]...)
-	index = binary.AppendUvarint(index, uint64(offset))
-
-	return n, index, nil
 }
 
 type Iterator[Value any] interface {
