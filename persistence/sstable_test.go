@@ -85,9 +85,9 @@ func TestSSTableFromIterator(t *testing.T) {
 	hashBase64 := base64.StdEncoding.EncodeToString(hashBytes)
 
 	file, _ := os.OpenFile("fromIteratorHash.sha256", os.O_RDONLY, 0600)
-	fileBytes := make([]byte, 32)
+	fileBytes := make([]byte, 44)
 	file.Read(fileBytes)
-	expectedBase64 := base64.StdEncoding.EncodeToString(fileBytes)
+	expectedBase64 := string(fileBytes)
 
 	if hashBase64 != expectedBase64 {
 		t.Errorf("hashBytes: expected %v; got %v", expectedBase64, hashBase64)

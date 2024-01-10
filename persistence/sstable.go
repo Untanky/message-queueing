@@ -8,20 +8,18 @@ import (
 	"time"
 )
 
-type BinaryMarshaler interface {
-	Marshal() ([]byte, error)
-}
-
-type BinaryUnmarshaler interface {
-	Unmarshal([]byte) error
-}
-
 const (
 	endOfPage = byte(0x01)
 	deleted   = byte(0x02)
 	retrieved = byte(0x04)
 	dlq       = byte(0x08)
+
+	pageSize       = uint64(16 * 1024)
+	headerSize     = uint64(64)
+	indexEntrySize = uint64(20)
 )
+
+var byteOrder = binary.BigEndian
 
 type RetrieveInfo struct {
 	retrieved       uint32
@@ -41,11 +39,30 @@ type Row struct {
 	Value               []byte
 }
 
+func (row *Row) getByteCount() uint64 {
+	bytes := uint64(1)
+
+	if row.DeletedAt != nil {
+		return bytes + 8
+	}
+
+	bytes += uint64(len(row.Value)) + 8
+
+	if row.RetrieveInfo != nil {
+		bytes += 12
+	}
+	if row.DeadLetterQueueInfo != nil {
+		bytes += 24
+	}
+
+	return bytes
+}
+
 func (row *Row) Marshal() ([]byte, error) {
 	if row.DeletedAt != nil {
 		data := make([]byte, 0, 9)
 		data = append(data, deleted)
-		data = binary.AppendUvarint(data, uint64(row.DeletedAt.UnixMilli()))
+		data = byteOrder.AppendUint64(data, uint64(row.DeletedAt.UnixMilli()))
 		return data, nil
 	}
 
@@ -54,15 +71,15 @@ func (row *Row) Marshal() ([]byte, error) {
 	data = append(data, 0)
 	if row.RetrieveInfo != nil {
 		data[0] |= retrieved
-		data = binary.AppendUvarint(data, uint64(row.RetrieveInfo.retrieved))
-		data = binary.AppendUvarint(data, uint64(row.RetrieveInfo.lastRetrievedAt.UnixMilli()))
+		data = byteOrder.AppendUint32(data, row.RetrieveInfo.retrieved)
+		data = byteOrder.AppendUint64(data, uint64(row.RetrieveInfo.lastRetrievedAt.UnixMilli()))
 	}
 	if row.DeadLetterQueueInfo != nil {
 		data[0] |= dlq
-		data = binary.AppendUvarint(data, uint64(row.DeadLetterQueueInfo.movedAt.UnixMilli()))
+		data = byteOrder.AppendUint64(data, uint64(row.DeadLetterQueueInfo.movedAt.UnixMilli()))
 		data = append(data, row.DeadLetterQueueInfo.originQueue[:]...)
 	}
-	data = binary.AppendUvarint(data, uint64(len(row.Value)))
+	data = byteOrder.AppendUint64(data, uint64(len(row.Value)))
 	data = append(data, row.Value...)
 	return data, nil
 }
@@ -73,7 +90,7 @@ func (row *Row) writeTo(dest []byte, offset uint32) (int, []byte, error) {
 		return 0, nil, err
 	}
 
-	if len(valueBytes)+indexEntrySize+1 > len(dest) {
+	if uint64(len(valueBytes))+indexEntrySize+1 > uint64(len(dest)) {
 		return 0, nil, errors.New("not enough space")
 	}
 
@@ -101,79 +118,35 @@ type ReadWriteSeekCloser interface {
 }
 
 type pageSpan struct {
-	offset   uint64
 	startKey uuid.UUID
 	endKey   uuid.UUID
 }
 
-type pageHeader struct {
-	pageSpan
-	rows       uint32
-	rowBytes   uint32
-	indexBytes uint32
-}
-
-func (header *pageHeader) Marshal() ([]byte, error) {
-	data := make([]byte, 0, headerSize)
-
-	data = byteOrder.AppendUint64(data, header.offset)
-	data = append(data, header.startKey[:]...)
-	data = append(data, header.endKey[:]...)
-	data = byteOrder.AppendUint32(data, header.rows)
-	data = byteOrder.AppendUint32(data, header.rowBytes)
-	data = byteOrder.AppendUint32(data, header.indexBytes)
-
-	return data, nil
-}
-
-var byteOrder = binary.BigEndian
-
-const (
-	pageSize       = 16 * 1024
-	headerSize     = 64
-	indexEntrySize = 20
-)
-
-func writePage(data *[pageSize]byte, iterator Iterator[Row]) pageSpan {
-	index := make([]byte, 0, 64*indexEntrySize)
-	offset := headerSize
-
-	header := pageHeader{}
-
-	for iterator.HasNext() && offset+len(index) < pageSize {
-		value := iterator.Next()
-
-		n, indexAppend, err := value.writeTo(data[offset:pageSize-len(index)], uint32(offset))
-		if err != nil {
-			break
+func compareUUID(a, b uuid.UUID) byte {
+	for i := 0; i < 16; i++ {
+		if a[i] != b[i] {
+			return a[i] - b[i]
 		}
-		offset += n
-		index = append(index, indexAppend...)
-
-		if header.rows == 0 {
-			header.startKey = value.Key
-		}
-		header.endKey = value.Key
-		header.rows += 1
 	}
 
-	data[offset] = endOfPage
-	copy(data[pageSize-len(index):], index)
+	return 0
+}
 
-	header.rowBytes = uint32(offset - headerSize + 1)
-	header.indexBytes = uint32(len(index))
-
-	headerBytes, _ := header.Marshal()
-
-	copy(data[0:headerSize], headerBytes)
-
-	return header.pageSpan
+func (span pageSpan) containsKey(key uuid.UUID) bool {
+	return compareUUID(key, span.startKey) > 0 && compareUUID(key, span.endKey) < 0
 }
 
 func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[Row]) (*SSTable, error) {
-	pageBytes := [pageSize]byte{}
-	writePage(&pageBytes, data)
-	_, err := handler.Write(pageBytes[:])
+	page := newDataPage()
+
+	for data.HasNext() {
+		ok := page.addRow(data.Next())
+		if !ok {
+			break
+		}
+	}
+
+	_, err := page.WriteTo(handler)
 	if err != nil {
 		return nil, err
 	}
