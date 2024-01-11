@@ -2,7 +2,9 @@ package persistence
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
+	"sync"
 	"time"
 )
 
@@ -87,9 +89,6 @@ type Iterator[Value any] interface {
 	HasNext() bool
 }
 
-type SSTable struct {
-}
-
 type ReadWriteSeekCloser interface {
 	io.Reader
 	io.Writer
@@ -115,6 +114,12 @@ func compareBytes(a, b []byte) byte {
 
 func (span pageSpan) containsKey(key []byte) bool {
 	return compareBytes(key, span.startKey) > 0 && compareBytes(key, span.endKey) < 0
+}
+
+type SSTable struct {
+	lock   sync.Mutex
+	header *tableHeader
+	reader io.ReadSeekCloser
 }
 
 func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[Row]) (*SSTable, error) {
@@ -165,5 +170,63 @@ func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[Row]) (*SSTa
 		return nil, err
 	}
 
-	return &SSTable{}, nil
+	return &SSTable{
+		header: header,
+		reader: handler,
+	}, nil
+}
+
+func (table *SSTable) loadPageFromSpan(span pageSpanWithOffset) (*dataPage, error) {
+	page := newDataPage()
+
+	table.lock.Lock()
+	defer table.lock.Unlock()
+
+	// set reader to offset for page
+	_, err := table.reader.Seek(int64(span.offset), io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
+
+	// read the page from the given offset off of the reader
+	_, err = page.ReadFrom(table.reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return page, nil
+}
+
+func (table *SSTable) Get(key []byte) (Row, error) {
+	span := table.header.get(key)
+
+	// TODO: check if the cached page is already the required page
+	// page, ok := table.getPageFromCache(span)
+	// if !ok { ... }
+
+	page, err := table.loadPageFromSpan(span)
+	if err != nil {
+		return Row{}, err
+	}
+
+	// TODO: cache the page
+	// table.cachePage(page)
+
+	row, ok := page.get(key)
+	if !ok {
+		return Row{}, errors.New("not found")
+	}
+
+	if row.DeletedAt != nil {
+		return Row{}, errors.New("row marked deleted")
+	}
+
+	return row, nil
+}
+
+func (table *SSTable) Close() error {
+	table.lock.Lock()
+	defer table.lock.Unlock()
+
+	return table.reader.Close()
 }
