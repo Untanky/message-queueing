@@ -102,7 +102,7 @@ type pageSpan struct {
 	endKey   []byte
 }
 
-func compareUUID(a, b []byte) byte {
+func compareBytes(a, b []byte) byte {
 	l := min(len(a), len(b))
 	for i := 0; i < l; i++ {
 		if a[i] != b[i] {
@@ -114,7 +114,7 @@ func compareUUID(a, b []byte) byte {
 }
 
 func (span pageSpan) containsKey(key []byte) bool {
-	return compareUUID(key, span.startKey) > 0 && compareUUID(key, span.endKey) < 0
+	return compareBytes(key, span.startKey) > 0 && compareBytes(key, span.endKey) < 0
 }
 
 func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[Row]) (*SSTable, error) {

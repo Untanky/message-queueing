@@ -56,7 +56,7 @@ func (page *dataPage) get(key []byte) (Row, bool) {
 
 	for len(rows) > 0 {
 		middle := len(rows) / 2
-		switch cmp := compareUUID(key, rows[middle].Key); {
+		switch cmp := compareBytes(key, rows[middle].Key); {
 		case cmp < 0:
 			rows = rows[:middle]
 		case cmp == 0:
