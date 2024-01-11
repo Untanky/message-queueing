@@ -28,7 +28,7 @@ func fillPage(handler io.WriteSeeker, data Iterator[Row]) (*dataPage, error) {
 	return page, nil
 }
 
-func TestSSTableFromIterator(t *testing.T) {
+func TestDataPage_WriteTo(t *testing.T) {
 	const expectedHash = "8ay4rwfoEjUb/MbCUWS3rquqjWNY+oM+eVuN0PAk/YI="
 
 	sliceIO := &testutils.SliceReadWriteSeeker{}
