@@ -118,27 +118,52 @@ func (span pageSpan) containsKey(key []byte) bool {
 }
 
 func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[Row]) (*SSTable, error) {
-	header := new(tableHeader)
-	page := newDataPage()
+	header := newTableHeader()
 
-	offset, err := handler.Seek(0, io.SeekStart)
+	initialOffset, err := handler.Write(make([]byte, pageSize))
 	if err != nil {
 		return nil, err
 	}
 
+	offset := int64(initialOffset)
+	page := newDataPage()
+
 	for data.HasNext() {
-		ok := page.addRow(data.Next())
+		current := data.Next()
+		ok := page.addRow(current)
+
 		if !ok {
-			break
+			var n int64
+			n, err = page.WriteTo(handler)
+			if err != nil {
+				return nil, err
+			}
+
+			offset += n
+			header.addPage(pageSpanWithOffset{offset: uint64(offset), pageSpan: page.getPageSpan()})
+
+			page = newDataPage()
+			page.addRow(current)
 		}
 	}
 
-	_, err = page.WriteTo(handler)
+	n, err := page.WriteTo(handler)
 	if err != nil {
 		return nil, err
 	}
 
+	offset += n
 	header.addPage(pageSpanWithOffset{offset: uint64(offset), pageSpan: page.getPageSpan()})
+
+	_, err = handler.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = header.WriteTo(handler)
+	if err != nil {
+		return nil, err
+	}
 
 	return &SSTable{}, nil
 }

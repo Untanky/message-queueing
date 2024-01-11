@@ -17,7 +17,7 @@ func (s *SliceReadWriteSeeker) Read(p []byte) (n int, err error) {
 }
 
 func (s *SliceReadWriteSeeker) Write(p []byte) (n int, err error) {
-	s.Data = append(s.Data[:s.loc], p...)
+	s.Data = append(s.Data[:s.loc], p...)[:cap(s.Data)]
 	s.loc += int64(len(p))
 	return len(p), nil
 }

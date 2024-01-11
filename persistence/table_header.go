@@ -30,7 +30,7 @@ type tableHeader struct {
 }
 
 // TODO: find a nicer way to do this
-var random *rand.Rand = &rand.Rand{}
+var random = rand.New(rand.NewSource(rand.Int63()))
 var now = time.Now
 
 func newTableHeader() *tableHeader {
