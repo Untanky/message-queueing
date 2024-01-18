@@ -23,6 +23,10 @@ func (header dataPageHeader) Marshal() ([]byte, error) {
 	return data, nil
 }
 
+func (header dataPageHeader) Unmarshal(data []byte) error {
+	panic("not implemented")
+}
+
 type dataPage struct {
 	writtenBytes uint64
 	rows         []Row
