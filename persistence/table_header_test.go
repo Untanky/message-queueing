@@ -4,11 +4,34 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"github.com/google/uuid"
+	"io"
 	"math/rand"
 	"message-queueing/testutils"
 	"testing"
 	"time"
 )
+
+func areTableHeaderEqual(t *testing.T, headerA, headerB *tableHeader) {
+	if headerA.tableVersion != headerB.tableVersion {
+		t.Errorf("tableVersion: tableA %v; tableB: %v", headerA.tableVersion, headerB.tableVersion)
+	}
+
+	if headerA.tableID != headerB.tableID {
+		t.Errorf("tableID: tableA %v; tableB: %v", headerA.tableID, headerB.tableID)
+	}
+
+	if !headerA.createdAt.Equal(headerB.createdAt) {
+		t.Errorf("createdAt: tableA %v; tableB: %v", headerA.createdAt, headerB.createdAt)
+	}
+
+	if headerA.compactionInformation != headerB.compactionInformation {
+		t.Errorf("compactionInformation: tableA %v; tableB: %v", headerA.compactionInformation, headerB.compactionInformation)
+	}
+
+	if len(headerA.spans) != len(headerB.spans) {
+		t.Errorf("len(spans): tableA %v; tableB: %v", len(headerA.spans), len(headerB.spans))
+	}
+}
 
 func TestTableHeader_Marshal(t *testing.T) {
 	header := newTableHeader()
@@ -40,25 +63,7 @@ func TestTableHeader_Marshal(t *testing.T) {
 		t.Errorf("header: expected nil; got %v", header)
 	}
 
-	if header.tableVersion != unmarshaledHeader.tableVersion {
-		t.Errorf("header.tableVersion: unmarshaled %v; expected: %v", unmarshaledHeader.tableVersion, header.tableVersion)
-	}
-
-	if header.tableID != unmarshaledHeader.tableID {
-		t.Errorf("header.tableID: unmarshaled %v; expected: %v", unmarshaledHeader.tableID, header.tableID)
-	}
-
-	if header.createdAt.Equal(unmarshaledHeader.createdAt) {
-		t.Errorf("header.createdAt: unmarshaled %v; expected: %v", unmarshaledHeader.createdAt, header.createdAt)
-	}
-
-	if header.compactionInformation != unmarshaledHeader.compactionInformation {
-		t.Errorf("header.compactionInformation: unmarshaled %v; expected: %v", unmarshaledHeader.compactionInformation, header.compactionInformation)
-	}
-
-	if len(header.spans) != len(unmarshaledHeader.spans) {
-		t.Errorf("header.spans: unmarshaled %v; expected: %v", len(unmarshaledHeader.spans), len(header.spans))
-	}
+	areTableHeaderEqual(t, header, unmarshaledHeader)
 }
 
 func TestTableHeader_WriteTo(t *testing.T) {
@@ -100,4 +105,13 @@ func TestTableHeader_WriteTo(t *testing.T) {
 	if hashBase64 != expectedHash {
 		t.Errorf("hashBytes: expected %v; got %v", expectedHash, hashBase64)
 	}
+
+	sliceIO.Seek(0, io.SeekStart)
+	readHeader := newTableHeader()
+	if readHeader == nil {
+		t.Errorf("header: expected not nil; got %v", header)
+	}
+	readHeader.ReadFrom(sliceIO)
+
+	areTableHeaderEqual(t, header, readHeader)
 }

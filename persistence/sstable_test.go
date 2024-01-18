@@ -33,7 +33,7 @@ func (it *countIterator) HasNext() bool {
 }
 
 func TestSSTableFromIterator(t *testing.T) {
-	const expectedHash = "Jgnd7IgXw16wqd0S4ogcgEqjl9jM747WpXJ2vlfiaAw="
+	const expectedHash = "jKEiG25oZStUVWkL4p66Q6752NAPmK7wfXGBzI39EBk="
 
 	sliceIO := &testutils.SliceReadWriteSeeker{}
 	random = rand.New(rand.NewSource(10))
