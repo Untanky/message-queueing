@@ -89,13 +89,6 @@ type Iterator[Value any] interface {
 	HasNext() bool
 }
 
-type ReadWriteSeekCloser interface {
-	io.Reader
-	io.Writer
-	io.Seeker
-	io.Closer
-}
-
 type pageSpan struct {
 	startKey []byte
 	endKey   []byte
@@ -122,15 +115,47 @@ type SSTable struct {
 	reader io.ReadSeekCloser
 }
 
-func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[Row]) (*SSTable, error) {
+func SSTableFromIterator(handler io.WriteSeeker, data Iterator[Row]) error {
 	header := newTableHeader()
 
+	// write empty header for spacing
 	initialOffset, err := handler.Write(make([]byte, pageSize))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	offset := int64(initialOffset)
+	table := &temporarySSTable{
+		header: header,
+		writer: handler,
+		offset: int64(initialOffset),
+	}
+
+	err = table.writeAllPages(data)
+	if err != nil {
+		return err
+	}
+
+	_, err = handler.Seek(0, io.SeekStart)
+	if err != nil {
+		return err
+	}
+
+	_, err = header.WriteTo(handler)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type temporarySSTable struct {
+	writer io.Writer
+	header *tableHeader
+	offset int64
+}
+
+func (table *temporarySSTable) writeAllPages(data Iterator[Row]) error {
+	var err error
 	page := newDataPage()
 
 	for data.HasNext() {
@@ -138,42 +163,34 @@ func SSTableFromIterator(handler ReadWriteSeekCloser, data Iterator[Row]) (*SSTa
 		ok := page.addRow(current)
 
 		if !ok {
-			var n int64
-			n, err = page.WriteTo(handler)
+			err = table.writePage(page)
 			if err != nil {
-				return nil, err
+				return err
 			}
-
-			offset += n
-			header.addPage(pageSpanWithOffset{offset: uint64(offset), pageSpan: page.getPageSpan()})
 
 			page = newDataPage()
 			page.addRow(current)
 		}
 	}
 
-	n, err := page.WriteTo(handler)
+	err = table.writePage(page)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	offset += n
-	header.addPage(pageSpanWithOffset{offset: uint64(offset), pageSpan: page.getPageSpan()})
+	return nil
+}
 
-	_, err = handler.Seek(0, io.SeekStart)
+func (table *temporarySSTable) writePage(page *dataPage) error {
+	n, err := page.WriteTo(table.writer)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	_, err = header.WriteTo(handler)
-	if err != nil {
-		return nil, err
-	}
+	table.offset += n
+	table.header.addPage(pageSpanWithOffset{offset: uint64(table.offset), pageSpan: page.getPageSpan()})
 
-	return &SSTable{
-		header: header,
-		reader: handler,
-	}, nil
+	return err
 }
 
 func (table *SSTable) loadPageFromSpan(span pageSpanWithOffset) (*dataPage, error) {

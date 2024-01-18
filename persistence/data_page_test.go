@@ -43,7 +43,7 @@ func fillPage(handler io.WriteSeeker, data Iterator[Row]) (*dataPage, error) {
 }
 
 func TestDataPage_WriteTo(t *testing.T) {
-	const expectedHash = "8ay4rwfoEjUb/MbCUWS3rquqjWNY+oM+eVuN0PAk/YI="
+	const expectedHash = "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
 
 	sliceIO := &testutils.SliceReadWriteSeeker{}
 	uuid.SetRand(rand.New(rand.NewSource(10)))

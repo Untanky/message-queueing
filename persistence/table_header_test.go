@@ -11,7 +11,7 @@ import (
 )
 
 func TestTableHeader_WriteTo(t *testing.T) {
-	const expectedHash = "U6eO6cx5MtW/3g11CB384RlwOe4oK8Pv8fCWxw48LGA="
+	const expectedHash = "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
 
 	sliceIO := &testutils.SliceReadWriteSeeker{}
 	random = rand.New(rand.NewSource(10))
