@@ -115,7 +115,7 @@ type SSTable struct {
 	reader io.ReadSeekCloser
 }
 
-func SSTableFromIterator(handler io.WriteSeeker, data Iterator[Row]) error {
+func CreateSSTable(handler io.WriteSeeker, data Iterator[Row]) error {
 	header := newTableHeader()
 
 	// write empty header for spacing
@@ -191,6 +191,27 @@ func (table *temporarySSTable) writePage(page *dataPage) error {
 	table.header.addPage(pageSpanWithOffset{offset: uint64(table.offset), pageSpan: page.getPageSpan()})
 
 	return err
+}
+
+func NewSSTable(reader io.ReadSeekCloser) (*SSTable, error) {
+	header := newTableHeader()
+
+	// set reader to offset for page
+	_, err := reader.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = header.ReadFrom(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SSTable{
+		lock:   sync.Mutex{},
+		reader: reader,
+		header: header,
+	}, nil
 }
 
 func (table *SSTable) loadPageFromSpan(span pageSpanWithOffset) (*dataPage, error) {

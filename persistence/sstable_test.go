@@ -33,7 +33,7 @@ func (it *countIterator) HasNext() bool {
 }
 
 func TestSSTableFromIterator(t *testing.T) {
-	const expectedHash = "DTSdg/IM9KCnGIhIS95xu6Cgb4sXB7yTA8B78GA2R4k="
+	const expectedHash = "Jgnd7IgXw16wqd0S4ogcgEqjl9jM747WpXJ2vlfiaAw="
 
 	sliceIO := &testutils.SliceReadWriteSeeker{}
 	random = rand.New(rand.NewSource(10))
@@ -42,10 +42,7 @@ func TestSSTableFromIterator(t *testing.T) {
 	}
 	uuid.SetRand(random)
 
-	table, err := SSTableFromIterator(sliceIO, &countIterator{maxCount: 500})
-	if table == nil {
-		t.Errorf("table: expected not nil; got %v", table)
-	}
+	err := CreateSSTable(sliceIO, &countIterator{maxCount: 500})
 	if err != nil {
 		t.Errorf("table: expected nil; got %v", err)
 	}

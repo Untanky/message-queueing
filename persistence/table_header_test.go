@@ -10,8 +10,59 @@ import (
 	"time"
 )
 
+func TestTableHeader_Marshal(t *testing.T) {
+	header := newTableHeader()
+	if header == nil {
+		t.Errorf("header: expected not nil; got %v", header)
+	}
+
+	for i := uint64(1); i < 17; i++ {
+		id1 := uuid.New()
+		id2 := uuid.New()
+
+		header.addPage(pageSpanWithOffset{
+			pageSpan: pageSpan{
+				startKey: id1[:],
+				endKey:   id2[:],
+			},
+			offset: i * pageSize,
+		})
+	}
+
+	bytes, err := header.Marshal()
+	if err != nil {
+		t.Errorf("header: expected nil; got %v", header)
+	}
+
+	unmarshaledHeader := newTableHeader()
+	err = unmarshaledHeader.Unmarshal(bytes)
+	if err != nil {
+		t.Errorf("header: expected nil; got %v", header)
+	}
+
+	if header.tableVersion != unmarshaledHeader.tableVersion {
+		t.Errorf("header.tableVersion: unmarshaled %v; expected: %v", unmarshaledHeader.tableVersion, header.tableVersion)
+	}
+
+	if header.tableID != unmarshaledHeader.tableID {
+		t.Errorf("header.tableID: unmarshaled %v; expected: %v", unmarshaledHeader.tableID, header.tableID)
+	}
+
+	if header.createdAt.Equal(unmarshaledHeader.createdAt) {
+		t.Errorf("header.createdAt: unmarshaled %v; expected: %v", unmarshaledHeader.createdAt, header.createdAt)
+	}
+
+	if header.compactionInformation != unmarshaledHeader.compactionInformation {
+		t.Errorf("header.compactionInformation: unmarshaled %v; expected: %v", unmarshaledHeader.compactionInformation, header.compactionInformation)
+	}
+
+	if len(header.spans) != len(unmarshaledHeader.spans) {
+		t.Errorf("header.spans: unmarshaled %v; expected: %v", len(unmarshaledHeader.spans), len(header.spans))
+	}
+}
+
 func TestTableHeader_WriteTo(t *testing.T) {
-	const expectedHash = "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+	const expectedHash = "5QBbcq9k28DBedkVO+vLFJjcoAXAMgHPoN+p8mmnwyg="
 
 	sliceIO := &testutils.SliceReadWriteSeeker{}
 	random = rand.New(rand.NewSource(10))

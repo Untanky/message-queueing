@@ -51,9 +51,10 @@ func (header *tableHeader) get(key []byte) pageSpanWithOffset {
 	panic("not implemented")
 }
 
+const pageSpanSize = 40
+
 func (header *tableHeader) Marshal() ([]byte, error) {
-	const pageSpanSize = 40
-	size := 24 + len(header.spans)*pageSpanSize
+	size := 28 + len(header.spans)*pageSpanSize
 	if header.compactionInformation != nil {
 		size += 40
 	}
@@ -72,6 +73,8 @@ func (header *tableHeader) Marshal() ([]byte, error) {
 		data = byteOrder.AppendUint64(data, header.compactionInformation.keysKept)
 	}
 
+	data = byteOrder.AppendUint64(data, uint64(len(header.spans)))
+
 	for _, span := range header.spans {
 		data = append(data, span.startKey...)
 		data = append(data, span.endKey...)
@@ -79,6 +82,36 @@ func (header *tableHeader) Marshal() ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+func (header *tableHeader) Unmarshal(data []byte) error {
+	header.tableVersion = byteOrder.Uint32(data[:4])
+	header.tableID = byteOrder.Uint64(data[4:12])
+	header.createdAt = time.UnixMilli(int64(byteOrder.Uint64(data[12:20])))
+
+	// TODO: implement reading compaction information
+	l := byteOrder.Uint64(data[20:28])
+
+	header.spans = make([]pageSpanWithOffset, 0, l)
+
+	byteOffset := 28
+
+	for i := uint64(0); i < l; i++ {
+		startKey, endKey := make([]byte, 16), make([]byte, 16)
+		copy(startKey, data[byteOffset:byteOffset+16])
+		copy(endKey, data[byteOffset+16:byteOffset+32])
+		offset := byteOrder.Uint64(data[byteOffset+32 : byteOffset+40])
+		header.spans = append(header.spans, pageSpanWithOffset{
+			offset: offset,
+			pageSpan: pageSpan{
+				startKey: startKey,
+				endKey:   endKey,
+			},
+		})
+		byteOffset += pageSpanSize
+	}
+
+	return nil
 }
 
 func (header *tableHeader) WriteTo(writer io.Writer) (int64, error) {
@@ -89,6 +122,12 @@ func (header *tableHeader) WriteTo(writer io.Writer) (int64, error) {
 }
 
 func (header *tableHeader) ReadFrom(reader io.Reader) (int64, error) {
-	// TODO: implement
-	panic("not implemented")
+	data := make([]byte, pageSize)
+	n, err := reader.Read(data)
+	if err != nil {
+		return int64(n), err
+	}
+
+	err = header.Unmarshal(data)
+	return int64(n), err
 }
