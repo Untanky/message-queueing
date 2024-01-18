@@ -94,6 +94,14 @@ func (page *dataPage) getPageHeader() dataPageHeader {
 	}
 }
 
+func (page *dataPage) Marshal() ([]byte, error) {
+	return []byte{}, nil
+}
+
+func (page *dataPage) Unmarshal(data []byte) error {
+	return nil
+}
+
 func (page *dataPage) WriteTo(writer io.Writer) (int64, error) {
 	data := [pageSize]byte{}
 
@@ -122,5 +130,6 @@ func (page *dataPage) WriteTo(writer io.Writer) (int64, error) {
 
 func (page *dataPage) ReadFrom(reader io.Reader) (int64, error) {
 	// TODO: implement
-	panic("not implemented")
+
+	return 0, nil
 }

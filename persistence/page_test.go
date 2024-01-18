@@ -26,13 +26,10 @@ type ssTablePageTest[Value ssTablePage] interface {
 
 func TestSSTablePages(t *testing.T) {
 	type testCase[Value ssTablePage] struct {
-		name         string
-		testLogic    ssTablePageTest[Value]
-		expectedHash string
-	}
-
-	cases := []testCase[*tableHeader]{
-		{name: "tableHeader", testLogic: tableHeaderTest{}, expectedHash: "pWENWZQonO0jeVSWKrl6Xhqen1S/psnOYGsbthbyA9w="},
+		name           string
+		testLogic      ssTablePageTest[Value]
+		expectedHash   string
+		skipMarshaling bool
 	}
 
 	random = rand.New(rand.NewSource(10))
@@ -41,18 +38,15 @@ func TestSSTablePages(t *testing.T) {
 	}
 	uuid.SetRand(random)
 
-	for _, c := range cases {
-		t.Run(c.name, func(tt *testing.T) {
-			runTestCases(t, c.testLogic, c.expectedHash)
-		})
-	}
+	t.Run("tableHeader", func(tt *testing.T) {
+		runTestCases[*tableHeader](tt, tableHeaderTest{}, "pWENWZQonO0jeVSWKrl6Xhqen1S/psnOYGsbthbyA9w=")
+	})
+	t.Run("dataPage", func(tt *testing.T) {
+		runTestCases[*dataPage](tt, dataPageTest{}, "sPiGEYDIwqG0rIU8XKUHwKikT2/wqNkCUxUTSCojWUU=")
+	})
 }
 
 func runTestCases[Value ssTablePage](t *testing.T, test ssTablePageTest[Value], expectedHash string) {
-	if test == nil {
-		return
-	}
-
 	t.Run("Marshalling and Unmarshalling", func(tt *testing.T) {
 		entity := test.newPage()
 		test.setupPage(entity)
