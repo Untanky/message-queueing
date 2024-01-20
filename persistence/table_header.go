@@ -46,9 +46,25 @@ func (header *tableHeader) addPage(span pageSpanWithOffset) {
 	header.spans = append(header.spans, span)
 }
 
-func (header *tableHeader) get(key []byte) pageSpanWithOffset {
-	// TODO: implement
-	panic("not implemented")
+func (header *tableHeader) get(key []byte) (pageSpanWithOffset, bool) {
+	spans := header.spans
+
+	for len(spans) > 0 {
+		middle := len(spans) / 2
+		if spans[middle].containsKey(key) {
+			return spans[middle], true
+		}
+
+		if compareBytes(key, spans[middle].startKey) < 0 {
+			spans = spans[:middle]
+		}
+
+		if compareBytes(key, spans[middle].endKey) < 0 {
+			spans = spans[middle+1:]
+		}
+	}
+
+	return pageSpanWithOffset{}, false
 }
 
 const pageSpanSize = 40

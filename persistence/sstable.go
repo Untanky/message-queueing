@@ -3,6 +3,7 @@ package persistence
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -19,7 +20,11 @@ const (
 	indexEntrySize = uint64(20)
 )
 
-var byteOrder = binary.BigEndian
+var (
+	NotFoundError = errors.New("not found")
+	markedDeleted = fmt.Errorf("%w: marked for deletion", NotFoundError)
+	byteOrder     = binary.BigEndian
+)
 
 type RetrieveInfo struct {
 	retrieved       uint32
@@ -269,7 +274,10 @@ func (table *SSTable) loadPageFromSpan(span pageSpanWithOffset) (*dataPage, erro
 }
 
 func (table *SSTable) Get(key []byte) (Row, error) {
-	span := table.header.get(key)
+	span, ok := table.header.get(key)
+	if !ok {
+		return Row{}, NotFoundError
+	}
 
 	// TODO: check if the cached page is already the required page
 	// page, ok := table.getPageFromCache(span)
@@ -285,11 +293,11 @@ func (table *SSTable) Get(key []byte) (Row, error) {
 
 	row, ok := page.get(key)
 	if !ok {
-		return Row{}, errors.New("not found")
+		return Row{}, NotFoundError
 	}
 
 	if row.DeletedAt != nil {
-		return Row{}, errors.New("row marked deleted")
+		return Row{}, markedDeleted
 	}
 
 	return row, nil
