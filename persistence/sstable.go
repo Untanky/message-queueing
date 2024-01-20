@@ -28,7 +28,7 @@ type RetrieveInfo struct {
 
 type DeadLetterQueueInfo struct {
 	movedAt     time.Time
-	originQueue [16]byte
+	originQueue []byte
 }
 
 type Row struct {
@@ -82,6 +82,42 @@ func (row *Row) Marshal() ([]byte, error) {
 	data = byteOrder.AppendUint64(data, uint64(len(row.Value)))
 	data = append(data, row.Value...)
 	return data, nil
+}
+
+func (row *Row) Unmarshal(data []byte) error {
+	flag := data[0]
+
+	if flag&deleted != 0 {
+		deletedAt := time.UnixMilli(int64(byteOrder.Uint64(data[1:9])))
+		row.DeletedAt = &deletedAt
+	}
+
+	offset := 1
+
+	if flag&retrieved != 0 {
+		row.RetrieveInfo = &RetrieveInfo{
+			retrieved:       byteOrder.Uint32(data[offset : offset+4]),
+			lastRetrievedAt: time.UnixMilli(int64(byteOrder.Uint64(data[offset+4 : offset+12]))),
+		}
+		offset += 12
+	}
+
+	if flag&dlq != 0 {
+		queueID := make([]byte, 16)
+		copy(queueID, data[offset+8:offset+24])
+
+		row.DeadLetterQueueInfo = &DeadLetterQueueInfo{
+			movedAt:     time.UnixMilli(int64(byteOrder.Uint64(data[offset : offset+8]))),
+			originQueue: queueID,
+		}
+		offset += 24
+	}
+
+	length := byteOrder.Uint64(data[offset : offset+8])
+	row.Value = make([]byte, length)
+	copy(row.Value, data[offset+8:])
+
+	return nil
 }
 
 type Iterator[Value any] interface {
@@ -194,14 +230,13 @@ func (table *temporarySSTable) writePage(page *dataPage) error {
 }
 
 func NewSSTable(reader io.ReadSeekCloser) (*SSTable, error) {
-	header := newTableHeader()
-
 	// set reader to offset for page
 	_, err := reader.Seek(0, io.SeekStart)
 	if err != nil {
 		return nil, err
 	}
 
+	header := newTableHeader()
 	_, err = header.ReadFrom(reader)
 	if err != nil {
 		return nil, err

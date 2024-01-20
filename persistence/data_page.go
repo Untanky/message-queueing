@@ -11,7 +11,7 @@ type dataPageHeader struct {
 	indexBytes uint64
 }
 
-func (header dataPageHeader) Marshal() ([]byte, error) {
+func (header *dataPageHeader) Marshal() ([]byte, error) {
 	data := make([]byte, 0, headerSize)
 
 	data = append(data, header.startKey[:]...)
@@ -23,8 +23,16 @@ func (header dataPageHeader) Marshal() ([]byte, error) {
 	return data, nil
 }
 
-func (header dataPageHeader) Unmarshal(data []byte) error {
-	panic("not implemented")
+func (header *dataPageHeader) Unmarshal(data []byte) error {
+	header.startKey = make([]byte, 16)
+	copy(header.startKey, data[:16])
+	header.endKey = make([]byte, 16)
+	copy(header.endKey, data[16:32])
+	header.rows = byteOrder.Uint32(data[32:36])
+	header.rowBytes = byteOrder.Uint64(data[36:44])
+	header.indexBytes = byteOrder.Uint64(data[44:52])
+
+	return nil
 }
 
 type dataPage struct {
@@ -129,7 +137,35 @@ func (page *dataPage) WriteTo(writer io.Writer) (int64, error) {
 }
 
 func (page *dataPage) ReadFrom(reader io.Reader) (int64, error) {
-	// TODO: implement
+	data := [pageSize]byte{}
 
-	return 0, nil
+	n, err := reader.Read(data[:])
+	if err != nil {
+		return int64(n), err
+	}
+
+	header := &dataPageHeader{}
+	err = header.Unmarshal(data[:headerSize])
+	if err != nil {
+		return int64(n), err
+	}
+
+	rows := make([]Row, 0, header.rows)
+	indexOffset := pageSize - header.indexBytes - 1
+	for i := uint32(0); i < header.rows; i++ {
+		key := make([]byte, 16)
+		copy(key, data[indexOffset:indexOffset+16])
+		rowOffset := byteOrder.Uint32(data[indexOffset+16 : indexOffset+20])
+
+		row := Row{
+			Key: key,
+		}
+		_ = row.Unmarshal(data[rowOffset:])
+
+		rows = append(rows, row)
+	}
+
+	page.rows = rows
+
+	return int64(n), nil
 }

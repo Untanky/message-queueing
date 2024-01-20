@@ -23,7 +23,7 @@ func (dataPageTest) setupPage(page *dataPage) {
 }
 
 func (dataPageTest) compare(t *testing.T, a, b *dataPage) {
-	//if len(a.rows) != len(b.rows) {
-	//	t.Errorf("len(rows): tableA %v; tableB: %v", len(a.rows), len(b.rows))
-	//}
+	if len(a.rows) != len(b.rows) {
+		t.Errorf("len(rows): tableA %v; tableB: %v", len(a.rows), len(b.rows))
+	}
 }
