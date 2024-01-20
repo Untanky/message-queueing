@@ -79,7 +79,6 @@ func (row *Row) Marshal() ([]byte, error) {
 		data = byteOrder.AppendUint64(data, uint64(row.DeadLetterQueueInfo.movedAt.UnixMilli()))
 		data = append(data, row.DeadLetterQueueInfo.originQueue[:]...)
 	}
-	data = byteOrder.AppendUint64(data, uint64(len(row.Value)))
 	data = append(data, row.Value...)
 	return data, nil
 }
@@ -113,9 +112,8 @@ func (row *Row) Unmarshal(data []byte) error {
 		offset += 24
 	}
 
-	length := byteOrder.Uint64(data[offset : offset+8])
-	row.Value = make([]byte, length)
-	copy(row.Value, data[offset+8:])
+	row.Value = make([]byte, len(data)-offset)
+	copy(row.Value, data[offset:])
 
 	return nil
 }

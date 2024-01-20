@@ -121,12 +121,13 @@ func (page *dataPage) WriteTo(writer io.Writer) (int64, error) {
 	indexOffset := pageSize - header.indexBytes - 1
 	for _, row := range page.rows {
 		rowBytes, _ := row.Marshal()
-		copy(data[rowOffset:], rowBytes)
+		byteOrder.PutUint32(data[rowOffset:], uint32(len(rowBytes)))
+		copy(data[rowOffset+4:], rowBytes)
 
 		copy(data[indexOffset:], row.Key[:])
 		byteOrder.PutUint32(data[indexOffset+16:], uint32(rowOffset))
 
-		rowOffset += uint64(len(rowBytes))
+		rowOffset += uint64(len(rowBytes)) + 4
 		indexOffset += indexEntrySize
 	}
 
@@ -157,10 +158,11 @@ func (page *dataPage) ReadFrom(reader io.Reader) (int64, error) {
 		copy(key, data[indexOffset:indexOffset+16])
 		rowOffset := byteOrder.Uint32(data[indexOffset+16 : indexOffset+20])
 
+		length := byteOrder.Uint32(data[rowOffset:])
 		row := Row{
 			Key: key,
 		}
-		_ = row.Unmarshal(data[rowOffset:])
+		_ = row.Unmarshal(data[rowOffset+4 : rowOffset+4+length])
 
 		rows = append(rows, row)
 	}

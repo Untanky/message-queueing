@@ -36,7 +36,7 @@ func TestSSTablePages(t *testing.T) {
 		runTestCases[*tableHeader](tt, tableHeaderTest{}, "ld21tWrGxJBxD4927I0V+m1MU04VltLwpTB3z2U2mtk=")
 	})
 	t.Run("dataPage", func(tt *testing.T) {
-		runTestCases[*dataPage](tt, dataPageTest{}, "OWkErxm8Soj3nfc5zdoFShil562G7T6iQSekRgY+DU8=")
+		runTestCases[*dataPage](tt, dataPageTest{}, "gkpvioStVRtGudjcGih/jQBmQ0CC3KJbqijTSgxUeek=")
 	})
 }
 
