@@ -133,19 +133,21 @@ type pageSpan struct {
 	endKey   []byte
 }
 
-func compareBytes(a, b []byte) byte {
+func compareBytes(a, b []byte) int {
 	l := min(len(a), len(b))
 	for i := 0; i < l; i++ {
 		if a[i] != b[i] {
-			return a[i] - b[i]
+			return int(a[i]) - int(b[i])
 		}
 	}
 
-	return byte(len(a) - len(b))
+	return len(a) - len(b)
 }
 
 func (span pageSpan) containsKey(key []byte) bool {
-	return compareBytes(key, span.startKey) > 0 && compareBytes(key, span.endKey) < 0
+	startKey := compareBytes(key, span.startKey)
+	endKey := compareBytes(key, span.endKey)
+	return startKey >= 0 && endKey <= 0
 }
 
 type SSTable struct {
@@ -226,8 +228,8 @@ func (table *temporarySSTable) writePage(page *dataPage) error {
 		return err
 	}
 
-	table.offset += n
 	table.header.addPage(pageSpanWithOffset{offset: uint64(table.offset), pageSpan: page.getPageSpan()})
+	table.offset += n
 
 	return err
 }

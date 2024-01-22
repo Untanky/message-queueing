@@ -165,6 +165,7 @@ func (page *dataPage) ReadFrom(reader io.Reader) (int64, error) {
 		_ = row.Unmarshal(data[rowOffset+4 : rowOffset+4+length])
 
 		rows = append(rows, row)
+		indexOffset += indexEntrySize
 	}
 
 	page.rows = rows

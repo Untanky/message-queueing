@@ -49,7 +49,7 @@ func (header *tableHeader) addPage(span pageSpanWithOffset) {
 func (header *tableHeader) get(key []byte) (pageSpanWithOffset, bool) {
 	spans := header.spans
 
-	for len(spans) > 0 {
+	for len(spans) > 1 {
 		middle := len(spans) / 2
 		if spans[middle].containsKey(key) {
 			return spans[middle], true
@@ -57,11 +57,13 @@ func (header *tableHeader) get(key []byte) (pageSpanWithOffset, bool) {
 
 		if compareBytes(key, spans[middle].startKey) < 0 {
 			spans = spans[:middle]
-		}
-
-		if compareBytes(key, spans[middle].endKey) < 0 {
+		} else if compareBytes(key, spans[middle].endKey) > 0 {
 			spans = spans[middle+1:]
 		}
+	}
+
+	if spans[0].containsKey(key) {
+		return spans[0], true
 	}
 
 	return pageSpanWithOffset{}, false
