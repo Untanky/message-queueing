@@ -78,10 +78,40 @@ func TestSSTable_Get(t *testing.T) {
 		t.Errorf("err: expected nil; got %v", err)
 	}
 
-	id := uuid.MustParse("00000000-0000-0000-0000-000000000800")
-	row, err := table.Get(id[:])
+	type testCase struct {
+		key     uuid.UUID
+		value   string
+		wantErr bool
+	}
 
-	if string(row.Value) != demoString {
-		t.Errorf("row.Value: expected %v; got %v", demoString, string(row.Value))
+	cases := []testCase{
+		{
+			key:     uuid.MustParse("00000000-0000-0000-0000-000000000800"),
+			value:   demoString,
+			wantErr: false,
+		},
+		{
+			key:     uuid.MustParse("00000000-0000-0000-0000-000000000700"),
+			value:   "",
+			wantErr: true,
+		},
+		{
+			key:     uuid.MustParse("00000000-0000-0000-0000-000000000900"),
+			value:   "",
+			wantErr: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run("FromKey", func(tt *testing.T) {
+			row, err := table.Get(c.key[:])
+
+			if err == nil == c.wantErr {
+				t.Errorf("err: expected %v, got: %v", c.wantErr, err)
+			}
+			if string(row.Value) != c.value {
+				t.Errorf("row.Value: expected %v; got %v", c.value, string(row.Value))
+			}
+		})
 	}
 }
