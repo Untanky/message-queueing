@@ -12,8 +12,6 @@ import (
 )
 
 type ssTablePage interface {
-	Marshal() ([]byte, error)
-	Unmarshal([]byte) error
 	WriteTo(io.Writer) (int64, error)
 	ReadFrom(io.Reader) (int64, error)
 }
@@ -41,46 +39,25 @@ func TestSSTablePages(t *testing.T) {
 }
 
 func runTestCases[Value ssTablePage](t *testing.T, test ssTablePageTest[Value], expectedHash string) {
-	t.Run("Marshalling and Unmarshalling", func(tt *testing.T) {
-		tt.Skip()
-		entity := test.newPage()
-		test.setupPage(entity)
+	handler := &testutils.SliceReadWriteSeeker{}
 
-		bytes, err := entity.Marshal()
-		if err != nil {
-			tt.Errorf("err: expected nil; got %v", err)
-		}
+	entity := test.newPage()
+	test.setupPage(entity)
+	entity.WriteTo(handler)
 
-		actual := test.newPage()
-		err = actual.Unmarshal(bytes)
-		if err != nil {
-			tt.Errorf("err: expected nil; got %v", err)
-		}
+	hash := sha256.New()
+	hash.Write(handler.Data)
+	hashBytes := hash.Sum(nil)
 
-		test.compare(tt, entity, actual)
-	})
+	hashBase64 := base64.StdEncoding.EncodeToString(hashBytes)
 
-	t.Run("Writing and Reading", func(tt *testing.T) {
-		handler := &testutils.SliceReadWriteSeeker{}
+	if hashBase64 != expectedHash {
+		t.Errorf("hashBytes: expected %v; got %v", expectedHash, hashBase64)
+	}
 
-		entity := test.newPage()
-		test.setupPage(entity)
-		entity.WriteTo(handler)
+	handler.Seek(0, io.SeekStart)
+	actual := test.newPage()
+	actual.ReadFrom(handler)
 
-		hash := sha256.New()
-		hash.Write(handler.Data)
-		hashBytes := hash.Sum(nil)
-
-		hashBase64 := base64.StdEncoding.EncodeToString(hashBytes)
-
-		if hashBase64 != expectedHash {
-			tt.Errorf("hashBytes: expected %v; got %v", expectedHash, hashBase64)
-		}
-
-		handler.Seek(0, io.SeekStart)
-		actual := test.newPage()
-		actual.ReadFrom(handler)
-
-		test.compare(tt, entity, actual)
-	})
+	test.compare(t, entity, actual)
 }

@@ -71,7 +71,7 @@ func (header *tableHeader) get(key []byte) (pageSpanWithOffset, bool) {
 
 const pageSpanSize = 40
 
-func (header *tableHeader) Marshal() ([]byte, error) {
+func (header *tableHeader) WriteTo(writer io.Writer) (int64, error) {
 	size := 28 + len(header.spans)*pageSpanSize
 	if header.compactionInformation != nil {
 		size += 40
@@ -99,10 +99,17 @@ func (header *tableHeader) Marshal() ([]byte, error) {
 		data = byteOrder.AppendUint64(data, span.offset)
 	}
 
-	return data, nil
+	n, err := writer.Write(data)
+	return int64(n), err
 }
 
-func (header *tableHeader) Unmarshal(data []byte) error {
+func (header *tableHeader) ReadFrom(reader io.Reader) (int64, error) {
+	data := make([]byte, pageSize)
+	n, err := reader.Read(data)
+	if err != nil {
+		return int64(n), err
+	}
+
 	header.tableVersion = byteOrder.Uint32(data[:4])
 	header.tableID = byteOrder.Uint64(data[4:12])
 	header.createdAt = time.UnixMilli(int64(byteOrder.Uint64(data[12:20])))
@@ -129,23 +136,5 @@ func (header *tableHeader) Unmarshal(data []byte) error {
 		byteOffset += pageSpanSize
 	}
 
-	return nil
-}
-
-func (header *tableHeader) WriteTo(writer io.Writer) (int64, error) {
-	headerBytes, _ := header.Marshal()
-
-	n, err := writer.Write(headerBytes)
-	return int64(n), err
-}
-
-func (header *tableHeader) ReadFrom(reader io.Reader) (int64, error) {
-	data := make([]byte, pageSize)
-	n, err := reader.Read(data)
-	if err != nil {
-		return int64(n), err
-	}
-
-	err = header.Unmarshal(data)
 	return int64(n), err
 }

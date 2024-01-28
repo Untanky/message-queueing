@@ -4,37 +4,6 @@ import (
 	"io"
 )
 
-type dataPageHeader struct {
-	pageSpan
-	rows       uint32
-	rowBytes   uint64
-	indexBytes uint64
-}
-
-func (header *dataPageHeader) Marshal() ([]byte, error) {
-	data := make([]byte, 0, headerSize)
-
-	data = append(data, header.startKey[:]...)
-	data = append(data, header.endKey[:]...)
-	data = byteOrder.AppendUint32(data, header.rows)
-	data = byteOrder.AppendUint64(data, header.rowBytes)
-	data = byteOrder.AppendUint64(data, header.indexBytes)
-
-	return data, nil
-}
-
-func (header *dataPageHeader) Unmarshal(data []byte) error {
-	header.startKey = make([]byte, 16)
-	copy(header.startKey, data[:16])
-	header.endKey = make([]byte, 16)
-	copy(header.endKey, data[16:32])
-	header.rows = byteOrder.Uint32(data[32:36])
-	header.rowBytes = byteOrder.Uint64(data[36:44])
-	header.indexBytes = byteOrder.Uint64(data[44:52])
-
-	return nil
-}
-
 type dataPage struct {
 	writtenBytes uint64
 	rows         []Row
@@ -93,32 +62,20 @@ func (page *dataPage) getPageSpan() pageSpan {
 	}
 }
 
-func (page *dataPage) getPageHeader() dataPageHeader {
-	return dataPageHeader{
-		pageSpan:   page.getPageSpan(),
-		rows:       uint32(len(page.rows)),
-		rowBytes:   page.writtenBytes,
-		indexBytes: indexEntrySize * uint64(len(page.rows)),
-	}
-}
-
-func (page *dataPage) Marshal() ([]byte, error) {
-	return []byte{}, nil
-}
-
-func (page *dataPage) Unmarshal(data []byte) error {
-	return nil
-}
-
 func (page *dataPage) WriteTo(writer io.Writer) (int64, error) {
 	data := [pageSize]byte{}
 
-	header := page.getPageHeader()
-	headerBytes, _ := header.Marshal()
-	copy(data[:headerSize], headerBytes)
+	span := page.getPageSpan()
+	rows := uint32(len(page.rows))
+	indexBytes := uint64(rows) * indexEntrySize
+	copy(data[:16], span.startKey)
+	copy(data[16:32], span.endKey)
+	byteOrder.PutUint32(data[32:36], rows)
+	byteOrder.PutUint64(data[36:44], page.writtenBytes)
+	byteOrder.PutUint64(data[44:52], indexBytes)
 
 	rowOffset := headerSize
-	indexOffset := pageSize - header.indexBytes - 1
+	indexOffset := pageSize - indexBytes - 1
 	for _, row := range page.rows {
 		rowBytes, _ := row.Marshal()
 		byteOrder.PutUint32(data[rowOffset:], uint32(len(rowBytes)))
@@ -145,15 +102,12 @@ func (page *dataPage) ReadFrom(reader io.Reader) (int64, error) {
 		return int64(n), err
 	}
 
-	header := &dataPageHeader{}
-	err = header.Unmarshal(data[:headerSize])
-	if err != nil {
-		return int64(n), err
-	}
+	rowCount := byteOrder.Uint32(data[32:36])
+	indexBytes := byteOrder.Uint64(data[44:52])
 
-	rows := make([]Row, 0, header.rows)
-	indexOffset := pageSize - header.indexBytes - 1
-	for i := uint32(0); i < header.rows; i++ {
+	rows := make([]Row, 0, int(rowCount))
+	indexOffset := pageSize - indexBytes - 1
+	for i := uint32(0); i < rowCount; i++ {
 		key := make([]byte, 16)
 		copy(key, data[indexOffset:indexOffset+16])
 		rowOffset := byteOrder.Uint32(data[indexOffset+16 : indexOffset+20])
