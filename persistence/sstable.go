@@ -123,28 +123,6 @@ func (row *Row) Unmarshal(data []byte) error {
 	return nil
 }
 
-type pageSpan struct {
-	startKey []byte
-	endKey   []byte
-}
-
-func compareBytes(a, b []byte) int {
-	l := min(len(a), len(b))
-	for i := 0; i < l; i++ {
-		if a[i] != b[i] {
-			return int(a[i]) - int(b[i])
-		}
-	}
-
-	return len(a) - len(b)
-}
-
-func (span pageSpan) containsKey(key []byte) bool {
-	startKey := compareBytes(key, span.startKey)
-	endKey := compareBytes(key, span.endKey)
-	return startKey >= 0 && endKey <= 0
-}
-
 type SSTable struct {
 	lock   sync.Mutex
 	header *tableHeader
