@@ -21,9 +21,9 @@ const (
 )
 
 var (
-	NotFoundError = errors.New("not found")
-	markedDeleted = fmt.Errorf("%w: marked for deletion", NotFoundError)
-	byteOrder     = binary.BigEndian
+	NotFoundError      = errors.New("not found")
+	MarkedDeletedError = fmt.Errorf("%w: marked for deletion", NotFoundError)
+	byteOrder          = binary.BigEndian
 )
 
 type RetrieveInfo struct {
@@ -121,11 +121,6 @@ func (row *Row) Unmarshal(data []byte) error {
 	copy(row.Value, data[offset:])
 
 	return nil
-}
-
-type Iterator[Value any] interface {
-	Next() Value
-	HasNext() bool
 }
 
 type pageSpan struct {
@@ -299,7 +294,7 @@ func (table *SSTable) Get(key []byte) (Row, error) {
 	}
 
 	if row.DeletedAt != nil {
-		return Row{}, markedDeleted
+		return Row{}, MarkedDeletedError
 	}
 
 	return row, nil
