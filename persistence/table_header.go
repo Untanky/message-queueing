@@ -2,7 +2,6 @@ package persistence
 
 import (
 	"io"
-	"math/rand"
 	"time"
 )
 
@@ -29,15 +28,11 @@ type tableHeader struct {
 	spans                 []pageSpanWithOffset
 }
 
-// TODO: find a nicer way to do this
-var random = rand.New(rand.NewSource(rand.Int63()))
-var now = time.Now
-
-func newTableHeader() *tableHeader {
+func newTableHeader(id uint64, createdAt time.Time) *tableHeader {
 	return &tableHeader{
 		tableVersion: SSTableVersion,
-		tableID:      random.Uint64(),
-		createdAt:    now(),
+		tableID:      id,
+		createdAt:    createdAt,
 		spans:        make([]pageSpanWithOffset, 0, 4),
 	}
 }

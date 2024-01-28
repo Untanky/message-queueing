@@ -151,8 +151,8 @@ type SSTable struct {
 	reader io.ReadSeekCloser
 }
 
-func CreateSSTable(handler io.WriteSeeker, data Iterator[Row]) error {
-	header := newTableHeader()
+func CreateSSTable(id uint64, createdAt time.Time, handler io.WriteSeeker, data Iterator[Row]) error {
+	header := newTableHeader(id, createdAt)
 
 	// write empty header for spacing
 	initialOffset, err := handler.Write(make([]byte, pageSize))
@@ -236,7 +236,7 @@ func NewSSTable(reader io.ReadSeekCloser) (*SSTable, error) {
 		return nil, err
 	}
 
-	header := newTableHeader()
+	header := newTableHeader(0, time.Now())
 	_, err = header.ReadFrom(reader)
 	if err != nil {
 		return nil, err

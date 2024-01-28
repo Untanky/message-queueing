@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"message-queueing/testutils"
 	"testing"
-	"time"
 )
 
 type ssTablePage interface {
@@ -23,18 +22,13 @@ type ssTablePageTest[Value ssTablePage] interface {
 }
 
 func TestSSTablePages(t *testing.T) {
-
-	random = rand.New(rand.NewSource(10))
-	now = func() time.Time {
-		return time.Date(2024, 10, 1, 14, 40, 0, 0, time.Local)
-	}
-	uuid.SetRand(random)
+	uuid.SetRand(rand.New(rand.NewSource(10)))
 
 	t.Run("tableHeader", func(tt *testing.T) {
-		runTestCases[*tableHeader](tt, tableHeaderTest{}, "ld21tWrGxJBxD4927I0V+m1MU04VltLwpTB3z2U2mtk=")
+		runTestCases[*tableHeader](tt, tableHeaderTest{}, "vjX1qoot5KRAGjleMfK6X5FNo2hUrVPhYvxcowU6D88=")
 	})
 	t.Run("dataPage", func(tt *testing.T) {
-		runTestCases[*dataPage](tt, dataPageTest{}, "gkpvioStVRtGudjcGih/jQBmQ0CC3KJbqijTSgxUeek=")
+		runTestCases[*dataPage](tt, dataPageTest{}, "aKbzyPmRicWQjUkWjDjEw91jJr9bAZiPSBZ61HDQays=")
 	})
 }
 

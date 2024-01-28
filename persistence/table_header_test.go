@@ -3,12 +3,13 @@ package persistence
 import (
 	"github.com/google/uuid"
 	"testing"
+	"time"
 )
 
 type tableHeaderTest struct{}
 
 func (tableHeaderTest) newPage() *tableHeader {
-	return newTableHeader()
+	return newTableHeader(10, time.Date(2024, 0, 28, 10, 55, 39, 0, time.Local))
 }
 
 func (tableHeaderTest) setupPage(header *tableHeader) {

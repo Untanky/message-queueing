@@ -35,16 +35,12 @@ func (it *countIterator) HasNext() bool {
 }
 
 func TestSSTableFromIterator(t *testing.T) {
-	const expectedHash = "2Xw+UeQK1M1LeefwnFwPKchyOwGqrFCG7y4lTdMqUD8="
+	const expectedHash = "Lom6kaNn5Xu3js23pVVXtkk0OBtV+zK+geAorMicoLM="
 
 	sliceIO := &testutils.SliceReadWriteSeeker{}
-	random = rand.New(rand.NewSource(10))
-	now = func() time.Time {
-		return time.Date(2024, 1, 10, 14, 40, 0, 0, time.Local)
-	}
-	uuid.SetRand(random)
+	uuid.SetRand(rand.New(rand.NewSource(10)))
 
-	err := CreateSSTable(sliceIO, &countIterator{maxCount: 500})
+	err := CreateSSTable(10, time.Date(2024, 0, 28, 11, 6, 39, 0, time.Local), sliceIO, &countIterator{maxCount: 500})
 	if err != nil {
 		t.Errorf("err: expected nil; got %v", err)
 	}
@@ -62,13 +58,9 @@ func TestSSTableFromIterator(t *testing.T) {
 
 func TestSSTable_Get(t *testing.T) {
 	sliceIO := &testutils.SliceReadWriteSeeker{}
-	random = rand.New(rand.NewSource(10))
-	now = func() time.Time {
-		return time.Date(2024, 1, 10, 14, 40, 0, 0, time.Local)
-	}
-	uuid.SetRand(random)
+	uuid.SetRand(rand.New(rand.NewSource(10)))
 
-	err := CreateSSTable(sliceIO, &countIterator{maxCount: 500})
+	err := CreateSSTable(10, time.Date(2024, 0, 28, 11, 6, 39, 0, time.Local), sliceIO, &countIterator{maxCount: 500})
 	if err != nil {
 		t.Errorf("err: expected nil; got %v", err)
 	}
