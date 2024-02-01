@@ -54,7 +54,7 @@ func main() {
 
 	file, err := os.OpenFile(fmt.Sprintf("%s/%s", *dataDir, "abc"), os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
-		log.Fatalf("failed to open file: %w", err)
+		log.Fatalf("failed to open file: %v", err)
 	}
 
 	storage := queueing.NewIOBlockStorage(file)

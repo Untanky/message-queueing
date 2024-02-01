@@ -30,6 +30,12 @@ func TestSSTablePages(t *testing.T) {
 	t.Run("dataPage", func(tt *testing.T) {
 		runTestCases[*dataPage](tt, dataPageTest{}, "aKbzyPmRicWQjUkWjDjEw91jJr9bAZiPSBZ61HDQays=")
 	})
+	t.Run("secondaryIndexPage", func(tt *testing.T) {
+		runTestCases[*secondaryIndexPage[int]](tt, secondaryIndexPageTest{}, "aXDx/YYCDYvaVRBbOpMXNJfwtnQmky8mozVcczGwJ3o=")
+	})
+	t.Run("inMemorySecondaryIndex", func(tt *testing.T) {
+		runTestCases[*inMemorySecondaryIndex[int]](tt, secondaryIndexTest{}, "VXyw4z/wDOE+DPr08fogHH5dZW4u4CJTfmRDsBAYh3A=")
+	})
 }
 
 func runTestCases[Value ssTablePage](t *testing.T, test ssTablePageTest[Value], expectedHash string) {
