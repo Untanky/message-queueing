@@ -25,9 +25,9 @@ type inMemorySecondaryIndex[IndexKey ordered] struct {
 	entries []*secondaryIndexEntry[[]byte, IndexKey]
 }
 
-func (secondaryIndex *inMemorySecondaryIndex[IndexKey]) Add(key IndexKey, value []byte) {
-	index := sort.Search(len(secondaryIndex.entries), func(i int) bool {
-		return secondaryIndex.entries[i].key >= key
+func (index *inMemorySecondaryIndex[IndexKey]) Add(key IndexKey, value []byte) {
+	foundIndex := sort.Search(len(index.entries), func(i int) bool {
+		return index.entries[i].key >= key
 	})
 
 	entry := &secondaryIndexEntry[[]byte, IndexKey]{
@@ -35,10 +35,10 @@ func (secondaryIndex *inMemorySecondaryIndex[IndexKey]) Add(key IndexKey, value 
 		value: value,
 	}
 
-	secondaryIndex.entries = append(secondaryIndex.entries, nil)
+	index.entries = append(index.entries, nil)
 
-	copy(secondaryIndex.entries[index+1:], secondaryIndex.entries[index:])
-	secondaryIndex.entries[index] = entry
+	copy(index.entries[foundIndex+1:], index.entries[foundIndex:])
+	index.entries[foundIndex] = entry
 }
 
 func (index *inMemorySecondaryIndex[IndexKey]) Get(key IndexKey) ([]byte, bool) {
